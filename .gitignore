@@ -1,0 +1,4 @@
+# Esto hará que Git ignore el archivo package.json
+package.json
+node_modules
+.env
