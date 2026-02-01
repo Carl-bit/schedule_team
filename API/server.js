@@ -1,52 +1,39 @@
+const pool = require('./config/db');
 const express = require('express');
 const app = express();
 const port = 3000;
 
-
 /**
- * Segun el orden de creacion CRUD
- * 1. CREATE
- * 2. READ
- * 3. UPDATE
- * 4. DELETE
  * 
- * Ese va ser el orden de separacion inicial de las rutas
+ *   Conexiones a las rutasS
+ * 
  */
+const empleadoRoutes = require('./routes/empleado.route');
 
-//------------------------------------------------------------------------------------------------------
+app.use(express.json()); // Middleware para entender JSON (importante para el futuro)
 
-/**
- * ------------------------------------------------------------------------------------------------------
- *  Todos los GET
- * ------------------------------------------------------------------------------------------------------
- */
+// USAR RUTAS:
+// Le decimos: "Todo lo que empiece con /api/empleados, manéjalo con empleadoRoutes"
+app.use('/api/empleados', empleadoRoutes);
 
+// 2. USAR: Vamos a crear una ruta de prueba que consulte la hora a la base de datos
+app.get('/prueba-db', async (req, res) => {
+    try {
+        // Le pedimos al "pool" que ejecute una consulta SQL simple
+        const resultado = await pool.query('SELECT NOW()');
 
-app.get('/', (req, res) => {
-    res.send('¡Hola! El servidor está funcionando 🚀');
+        // Si funciona, enviamos la hora que nos dio la base de datos
+        res.json({
+            mensaje: '¡Conexión exitosa! 🎉',
+            hora_servidor: resultado.rows[0].now
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Algo salió mal con la conexión' });
+    }
 });
 
 
-/**
- * ------------------------------------------------------------------------------------------------------
- *  Todos los POST
- * ------------------------------------------------------------------------------------------------------
- */
-
-
-/**
- * ------------------------------------------------------------------------------------------------------
- *  Todos los PUT
- * ------------------------------------------------------------------------------------------------------
- */
-
-
-
-/**
- * ------------------------------------------------------------------------------------------------------
- *  Todos los DELETE 
- * ------------------------------------------------------------------------------------------------------
- */
 
 
 app.listen(port, () => {
