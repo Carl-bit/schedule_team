@@ -1,6 +1,7 @@
 const express = require('express');
 require('dotenv').config(); // 1. Configuración (siempre arriba)
 const pool = require('./config/db');
+const cors = require('cors');
 
 const app = express();
 const port = 3000;
@@ -13,7 +14,7 @@ const catalogoRoutes = require('./routes/catalogo.route');
 const ausenciaRoutes = require('./routes/ausencia.routes');
 
 app.use(express.json()); // Middleware para entender JSON (importante para el futuro)
-
+app.use(cors());
 
 // USAR RUTAS:
 // Le decimos: "Todo lo que empiece con /api/empleados, manéjalo con empleadoRoutes"
