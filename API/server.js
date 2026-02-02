@@ -1,20 +1,28 @@
-const pool = require('./config/db');
 const express = require('express');
+require('dotenv').config(); // 1. Configuración (siempre arriba)
+const pool = require('./config/db');
+
 const app = express();
 const port = 3000;
 
-/**
- * 
- *   Conexiones a las rutasS
- * 
- */
 const empleadoRoutes = require('./routes/empleado.route');
+const proyectoRoutes = require('./routes/proyecto.route');
+const horaRoutes = require('./routes/hora.route');
+const asignacionRoutes = require('./routes/asignaciones.route');
+const catalogoRoutes = require('./routes/catalogo.route');
+const ausenciaRoutes = require('./routes/ausencia.routes');
 
 app.use(express.json()); // Middleware para entender JSON (importante para el futuro)
+
 
 // USAR RUTAS:
 // Le decimos: "Todo lo que empiece con /api/empleados, manéjalo con empleadoRoutes"
 app.use('/api/empleados', empleadoRoutes);
+app.use('/api/proyectos', proyectoRoutes);
+app.use('/api/hora', horaRoutes);
+app.use('/api/asignaciones', asignacionRoutes);
+app.use('/api/catalogos', catalogoRoutes);
+app.use('/api/ausencias', ausenciaRoutes);
 
 // 2. USAR: Vamos a crear una ruta de prueba que consulte la hora a la base de datos
 app.get('/prueba-db', async (req, res) => {
