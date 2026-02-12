@@ -51,10 +51,31 @@ const deleteEmpleado = async (id) => {
   return result.rows[0];
 };
 
+const verifyCredentials = async (email, password) => {
+  // A. Buscamos por EMAIL, no por ID
+  const query = 'SELECT * FROM empleados WHERE correo_empleado = $1';
+  const result = await pool.query(query, [email]);
+
+  const user = result.rows[0];
+
+  // B. Si no existe el usuario, retornamos null
+  if (!user) return null;
+
+  // C. Comparamos la contraseña que nos dieron con el Hash de la DB
+  const isMatch = await bcrypt.compare(password, user.password_hash);
+
+  if (!isMatch) return null; // Contraseña incorrecta
+
+  // D. Retornamos el usuario (¡Sin el hash por seguridad!)
+  const { password_hash, ...userWithoutPass } = user;
+  return userWithoutPass;
+};
+
 module.exports = {
   getEmpleados,
   getEmpleadoById,
   createEmpleado,
   updateEmpleado,
-  deleteEmpleado
+  deleteEmpleado,
+  verifyCredentials
 };

@@ -100,10 +100,46 @@ const deleteEmpleado = async (req, res) => {
     }
 };
 
+// POST: Login
+const loginEmpleado = async (req, res) => {
+    try {
+        const { correo, password } = req.body;
+
+        // 1. Buscamos al usuario en la DB
+        const user = await empleadoService.verifyCredentials(correo, password);
+
+        if (!user) {
+            return res.status(401).json({
+                error: "Credenciales incorrectas.",
+                frase: obtenerFraseAleatoria()
+            });
+        }
+
+        // 2. ¡Éxito! Creamos la Cookie de Sesión
+        // Le decimos al navegador: "Guarda esto por 1 día"
+        if (user.puesto_empleado_id.toString() === 'PUESTO_JEFE') {
+            res.setHeader('Set-Cookie', `user_role=lider; Path=/; Max-Age=86400; HttpOnly; Secure`);
+        } else {
+            res.setHeader('Set-Cookie', `user_role=trabajador; Path=/; Max-Age=86400; HttpOnly; Secure`);
+        }
+
+        // 3. Respondemos con los datos del usuario (sin la contraseña)
+        res.json({
+            mensaje: "¡Acceso concedido!",
+            user: user
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: obtenerFraseAleatoria() });
+    }
+};
+
 module.exports = {
     getEmpleados,
     getEmpleadoById,
     createEmpleado,
     updateEmpleado,
-    deleteEmpleado
+    deleteEmpleado,
+    loginEmpleado
 };

@@ -3,6 +3,7 @@ require('dotenv').config(); // 1. Configuración (siempre arriba)
 const pool = require('./config/db');
 const cors = require('cors');
 
+const { obtenerFraseAleatoria } = require('./utils/naas');
 const app = express();
 const port = 3000;
 
@@ -12,9 +13,15 @@ const horaRoutes = require('./routes/hora.route');
 const asignacionRoutes = require('./routes/asignaciones.route');
 const catalogoRoutes = require('./routes/catalogo.route');
 const ausenciaRoutes = require('./routes/ausencia.routes');
+const authRoutes = require('./routes/auth.routes');
 
 app.use(express.json()); // Middleware para entender JSON (importante para el futuro)
-app.use(cors());
+
+app.use(cors({
+    origin: 'http://localhost:3001', // <--- IMPORTANTE: Debe coincidir EXACTO con la URL de tu navegador
+    credentials: true,               // <--- Permite pasar el "Pasaporte" (Cookies)
+    methods: ['GET', 'POST', 'PUT', 'DELETE']
+}));
 
 // USAR RUTAS:
 // Le decimos: "Todo lo que empiece con /api/empleados, manéjalo con empleadoRoutes"
@@ -24,26 +31,24 @@ app.use('/api/hora', horaRoutes);
 app.use('/api/asignaciones', asignacionRoutes);
 app.use('/api/catalogos', catalogoRoutes);
 app.use('/api/ausencias', ausenciaRoutes);
+app.use('/api/auth', authRoutes);
 
-// 2. USAR: Vamos a crear una ruta de prueba que consulte la hora a la base de datos
-app.get('/prueba-db', async (req, res) => {
+
+app.get('/', async (req, res) => {
     try {
         // Le pedimos al "pool" que ejecute una consulta SQL simple
         const resultado = await pool.query('SELECT NOW()');
 
         // Si funciona, enviamos la hora que nos dio la base de datos
         res.json({
-            mensaje: '¡Conexión exitosa! 🎉',
+            mensaje: 'Tu no deberias estar aqui, pero al meno sabes que esto esta encendido',
             hora_servidor: resultado.rows[0].now
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Algo salió mal con la conexión' });
+        res.status(500).json({ error: obtenerFraseAleatoria() });
     }
 });
-
-
-
 
 app.listen(port, () => {
     console.log(`Servidor escuchando en http://localhost:${port}`);
