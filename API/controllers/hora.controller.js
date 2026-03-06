@@ -1,5 +1,5 @@
 const horaService = require('../services/hora.service');
-const { obtenerFraseAleatoria } = require('../utils/naas');
+const { obtenerFraseAleatoria } = require('../utils/naas/naas');
 
 const getHoras = async (req, res) => {
     try {

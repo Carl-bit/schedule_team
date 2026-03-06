@@ -1,5 +1,5 @@
 const empleadoService = require('../services/empleado.service');
-const { obtenerFraseAleatoria } = require('../utils/naas');
+const { obtenerFraseAleatoria } = require('../utils/naas/naas');
 
 const loginEmpleado = async (req, res) => {
     try {

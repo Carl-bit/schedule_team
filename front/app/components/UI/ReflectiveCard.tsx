@@ -80,7 +80,7 @@ const ReflectiveCard: React.FC<ReflectiveCardProps> = ({
 
     return (
         <div
-            className={`relative w-[320px] h-[500px] rounded-[20px] overflow-hidden bg-[#1a1a1a] shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.1)_inset] isolate font-sans ${className}`}
+            className={`relative w-full h-full rounded-[20px] overflow-hidden bg-[#1a1a1a] shadow-[0_20px_50px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.1)_inset] isolate font-sans ${className}`}
             style={{ ...style, ...cssVariables }}
         >
             <svg className="absolute w-0 h-0 pointer-events-none opacity-0" aria-hidden="true">
@@ -149,19 +149,8 @@ const ReflectiveCard: React.FC<ReflectiveCardProps> = ({
 
             <div className="absolute inset-0 rounded-[20px] p-[1px] bg-[linear-gradient(135deg,rgba(255,255,255,0.8)_0%,rgba(255,255,255,0.2)_50%,rgba(255,255,255,0.6)_100%)] [mask:linear-gradient(#fff_0_0)_content-box,linear-gradient(#fff_0_0)] [mask-composite:exclude] z-20 pointer-events-none" />
 
-            <div className="relative z-10 h-full flex flex-col justify-between p-8 text-[var(--text-color,white)] bg-[var(--overlay-color,rgba(255,255,255,0.05))]">
-
-                <div className="flex-1 flex flex-col justify-end items-center text-center gap-6 mb-8">
-                    <div className="relative z-10 w-full h-full">
-                        {children}
-                    </div>
-                </div>
-
-                <div className="flex justify-between items-end border-t border-white/20 pt-6">
-                    {/* TODO:
-                        Generar los demas datos para que se visualicen correctamente cuando se despliegue la tarjeta
-                    */}
-                </div>
+            <div className="relative z-10 w-full h-full flex flex-col text-[var(--text-color,white)] bg-[var(--overlay-color,rgba(255,255,255,0.05))]">
+                {children}
             </div>
         </div>
     );

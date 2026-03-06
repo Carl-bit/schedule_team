@@ -1,5 +1,5 @@
 const asignacionService = require('../services/asignaciones.service');
-const { obtenerFraseAleatoria } = require('../utils/naas');
+const { obtenerFraseAleatoria } = require('../utils/naas/naas');
 
 const getAsignaciones = async (req, res) => {
     try {

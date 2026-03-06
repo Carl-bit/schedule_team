@@ -4,43 +4,80 @@ const bcrypt = require('bcrypt'); // 🔐 Necesario para encriptar al crear
 
 // 1. LEER TODOS (Ya lo tenías, lo dejamos igual)
 const getEmpleados = async () => {
-  const result = await pool.query('SELECT * FROM empleados');
+  const result = await pool.query(`SELECT 
+                                  e.empleado_id,
+                                  e.nombre_empleado, 
+                                  e.alias_empleado,    
+                                  e.telefono_empleado, 
+                                  e.correo_empleado, 
+                                  c.puesto_empleado    
+                                FROM empleados e 
+                                LEFT JOIN catalogo_empleado c ON e.puesto_empleado_id = c.puesto_empleado_id;`);
   return result.rows;
 };
 
 // 2. LEER UNO POR ID (Nuevo)
 const getEmpleadoById = async (id) => {
-  const result = await pool.query('SELECT * FROM empleados WHERE empleado_id = $1', [id]);
+  const result = await pool.query(`SELECT 
+                                  e.empleado_id,
+                                  e.nombre_empleado, 
+                                  e.alias_empleado,    
+                                  e.telefono_empleado, 
+                                  e.correo_empleado, 
+                                  c.puesto_empleado    
+                                FROM empleados e 
+                                LEFT JOIN catalogo_empleado c ON e.puesto_empleado_id = c.puesto_empleado_id 
+                                WHERE e.empleado_id = $1;`, [id]);
   return result.rows[0];
 };
 
 // 3. CREAR EMPLEADO (¡Con Hash de contraseña!) 🆕
-const createEmpleado = async (nombre, correo, password, puesto_id) => {
+const createEmpleado = async (nombre, correo, password, alias, telefono, puesto_id) => {
   const id = crypto.randomUUID();
 
   // Encriptamos la contraseña antes de guardarla (10 rondas de sal)
   const passwordHash = await bcrypt.hash(password, 10);
 
   const query = `
-        INSERT INTO empleados (empleado_id, nombre_empleado, correo_empleado, password_hash, puesto_empleado_id)
-        VALUES ($1, $2, $3, $4, $5)
-        RETURNING empleado_id, nombre_empleado, correo_empleado, puesto_empleado_id`; // ¡Ojo! No devolvemos el hash por seguridad
+        INSERT INTO empleados (empleado_id, nombre_empleado, correo_empleado, password_hash, alias_empleado, telefono_empleado, puesto_empleado_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING empleado_id, nombre_empleado, correo_empleado, alias_empleado, telefono_empleado, puesto_empleado_id`; // ¡Ojo! No devolvemos el hash por seguridad
 
-  const values = [id, nombre, correo, passwordHash, puesto_id];
+  const values = [id, nombre, correo, passwordHash, alias, telefono, puesto_id];
   const result = await pool.query(query, values);
   return result.rows[0];
 };
 
 // 4. ACTUALIZAR EMPLEADO 🆕
-const updateEmpleado = async (id, nombre, correo) => {
+const updateEmpleado = async (id, nombre, alias, telefono) => {
   const query = `
         UPDATE empleados
-        SET nombre_empleado = $1, correo_empleado = $2
-        WHERE empleado_id = $3
-        RETURNING empleado_id, nombre_empleado, correo_empleado`;
+        SET nombre_empleado = $1, alias_empleado = $2, telefono_empleado = $3
+        WHERE empleado_id = $4
+        RETURNING empleado_id, nombre_empleado, alias_empleado, telefono_empleado`;
 
-  const values = [nombre, correo, id];
+  const values = [nombre, alias, telefono, id];
   const result = await pool.query(query, values);
+  return result.rows[0];
+};
+
+// 4.1 ACTUALIZAR CONTRASEÑA 🆕
+const updatePassword = async (id, newPassword) => {
+  // 1. Generamos el Hash (Igual que en el registro)
+  const saltRounds = 10;
+  const passwordHash = await bcrypt.hash(newPassword, saltRounds);
+
+  // 2. Actualizamos SOLO el campo password_hash
+  const query = `
+    UPDATE empleados
+    SET password_hash = $1
+    WHERE empleado_id = $2
+    RETURNING empleado_id
+  `;
+
+  const values = [passwordHash, id];
+  const result = await pool.query(query, values);
+
   return result.rows[0];
 };
 
@@ -53,7 +90,7 @@ const deleteEmpleado = async (id) => {
 
 const verifyCredentials = async (email, password) => {
   // A. Buscamos por EMAIL, no por ID
-  const query = 'SELECT * FROM empleados WHERE correo_empleado = $1';
+  const query = 'SELECT e.empleado_id, e.nombre_empleado, e.alias_empleado, e.telefono_empleado, e.password_hash, e.correo_empleado, c.puesto_empleado FROM empleados e LEFT JOIN catalogo_empleado c ON e.puesto_empleado_id = c.puesto_empleado_id WHERE e.correo_empleado = $1;';
   const result = await pool.query(query, [email]);
 
   const user = result.rows[0];
@@ -77,5 +114,6 @@ module.exports = {
   createEmpleado,
   updateEmpleado,
   deleteEmpleado,
-  verifyCredentials
+  verifyCredentials,
+  updatePassword
 };

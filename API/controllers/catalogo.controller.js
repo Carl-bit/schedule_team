@@ -1,5 +1,5 @@
 const catalogoService = require('../services/catalogo.service');
-const { obtenerFraseAleatoria } = require('../utils/naas');
+const { obtenerFraseAleatoria } = require('../utils/naas/naas');
 
 // Función genérica para manejar las respuestas y no repetir código
 const manejarRespuesta = (res, datos, nombreCatalogo) => {

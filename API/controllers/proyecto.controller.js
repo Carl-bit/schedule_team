@@ -1,5 +1,5 @@
 const proyectoService = require('../services/proyecto.service');
-const { obtenerFraseAleatoria } = require('../utils/naas');
+const { obtenerFraseAleatoria } = require('../utils/naas/naas');
 
 const getProyectos = async (req, res) => {
     try {

@@ -1,5 +1,5 @@
 const empleadoService = require('../services/empleado.service');
-const { obtenerFraseAleatoria } = require('../utils/naas');
+const { obtenerFraseAleatoria } = require('../utils/naas/naas');
 
 // GET: Todos
 const getEmpleados = async (req, res) => {
@@ -32,17 +32,18 @@ const getEmpleadoById = async (req, res) => {
 // POST: Crear
 const createEmpleado = async (req, res) => {
     try {
-        const { nombre, correo, password, puesto_id } = req.body;
+        const { nombre, correo, password, alias, telefono, puesto_id } = req.body;
 
         // Validación simple
-        if (!nombre || !correo || !password || !puesto_id) {
+        if (!nombre || !correo || !password || !alias || !telefono || !puesto_id) {
+
             return res.status(400).json({
                 error: "Faltan datos. No soy adivino.",
                 frase: obtenerFraseAleatoria()
             });
         }
 
-        const nuevoEmpleado = await empleadoService.createEmpleado(nombre, correo, password, puesto_id);
+        const nuevoEmpleado = await empleadoService.createEmpleado(nombre, correo, password, alias, telefono, puesto_id);
         res.status(201).json(nuevoEmpleado);
 
     } catch (error) {
@@ -62,9 +63,9 @@ const createEmpleado = async (req, res) => {
 const updateEmpleado = async (req, res) => {
     try {
         const { id } = req.params;
-        const { nombre, correo } = req.body;
+        const { nombre_empleado, alias_empleado, telefono_empleado } = req.body;
 
-        const empleadoActualizado = await empleadoService.updateEmpleado(id, nombre, correo);
+        const empleadoActualizado = await empleadoService.updateEmpleado(id, nombre_empleado, alias_empleado, telefono_empleado);
 
         if (!empleadoActualizado) {
             return res.status(404).json({ error: "No encontré a quién actualizar." });
@@ -72,6 +73,30 @@ const updateEmpleado = async (req, res) => {
         res.json(empleadoActualizado);
 
     } catch (error) {
+        res.status(500).json({ error: obtenerFraseAleatoria() });
+    }
+};
+
+const changePassword = async (req, res) => {
+    try {
+        const { id } = req.params; // El ID suele venir en la URL
+        const { newPassword } = req.body; // La contraseña en el cuerpo
+
+        if (!newPassword || newPassword.length < 6) {
+            return res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres" });
+        }
+
+        const updated = await empleadoService.updatePassword(id, newPassword);
+
+        if (!updated) {
+            return res.status(404).json({ error: "Empleado no encontrado" });
+        }
+
+        res.json({ message: "Contraseña actualizada correctamente" });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Error interno del servidor" });
         res.status(500).json({ error: obtenerFraseAleatoria() });
     }
 };
@@ -141,5 +166,6 @@ module.exports = {
     createEmpleado,
     updateEmpleado,
     deleteEmpleado,
-    loginEmpleado
+    loginEmpleado,
+    changePassword
 };

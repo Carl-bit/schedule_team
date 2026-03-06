@@ -1,5 +1,5 @@
 const ausenciaService = require('../services/ausencia.service');
-const { obtenerFraseAleatoria } = require('../utils/naas');
+const { obtenerFraseAleatoria } = require('../utils/naas/naas');
 
 const getAusencias = async (req, res) => {
     try {

@@ -3,7 +3,7 @@ require('dotenv').config(); // 1. Configuración (siempre arriba)
 const pool = require('./config/db');
 const cors = require('cors');
 
-const { obtenerFraseAleatoria } = require('./utils/naas');
+const { obtenerFraseAleatoria } = require('./utils/naas/naas');
 const app = express();
 const port = 3000;
 

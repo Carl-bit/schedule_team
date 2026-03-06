@@ -32,7 +32,6 @@ export default function Header() {
                 onClick={handleLogout}
                 className="group flex items-center gap-2 bg-blue-500/10 hover:bg-red-500/10 text-blue-500 hover:text-red-500 border border-blue-500/20 hover:border-red-500/20 px-4 py-2 rounded-lg transition-all text-sm font-bold"
             >
-                <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
                 <span className="material-icons transition-transform group-hover:scale-110">
                     logout
                 </span>
