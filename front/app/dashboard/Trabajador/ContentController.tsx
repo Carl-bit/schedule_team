@@ -21,4 +21,4 @@ export default function ContentController({ vista }: ContentControllerProps) {
         default:
             return <ResumePanel />; // 👈 Que sea el default también
     }
-}
+} 

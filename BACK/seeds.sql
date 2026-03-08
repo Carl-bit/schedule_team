@@ -123,3 +123,8 @@ VALUES (
         NULL,
         1
     ) ON CONFLICT (registro_id) DO NOTHING;
+UPDATE registro_horas
+SET inicio_trabajo = '2025-10-27 09:00:00',
+    fin_trabajo = '2025-10-27 18:00:00',
+    estado_id = 1
+WHERE registro_id = 'REG_002';

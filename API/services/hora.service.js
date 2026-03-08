@@ -6,6 +6,12 @@ const getHoras = async () => {
     return result.rows;
 };
 
+const getHorasByEmpleado = async (empleado_id) => {
+    const query = 'SELECT * FROM registro_horas WHERE empleado_id = $1 ORDER BY inicio_trabajo ASC';
+    const result = await pool.query(query, [empleado_id]);
+    return result.rows;
+};
+
 // --- NUEVO: Verificar si tiene un turno abierto ---
 const verificarSiTrabaja = async (empleado_id) => {
     // Buscamos si hay algún registro donde 'fin_trabajo' sea NULL para este empleado
@@ -36,6 +42,16 @@ const terminarJornada = async (registro_id) => {
     return result.rows[0];
 };
 
+const cerrarManual = async (registro_id, fin_trabajo) => {
+    const query = `
+        UPDATE registro_horas 
+        SET fin_trabajo = $1, estado_id = 2
+        WHERE registro_id = $2 
+        RETURNING *`;
+    const result = await pool.query(query, [fin_trabajo, registro_id]);
+    return result.rows[0];
+};
+
 // --- NUEVO: Borrar un registro (por si se equivocaron de dedo) ---
 const deleteHora = async (registro_id) => {
     const query = 'DELETE FROM registro_horas WHERE registro_id = $1 RETURNING *';
@@ -45,8 +61,10 @@ const deleteHora = async (registro_id) => {
 
 module.exports = {
     getHoras,
+    getHorasByEmpleado,
     verificarSiTrabaja, // ¡Exportamos la nueva función!
     iniciarJornada,
     terminarJornada,
+    cerrarManual,       // Nueva función manual
     deleteHora          // ¡Y esta también!
 };

@@ -10,6 +10,20 @@ const getHoras = async (req, res) => {
     }
 };
 
+const getHorasByEmpleado = async (req, res) => {
+    try {
+        const { empleado_id } = req.params;
+        if (!empleado_id) {
+            return res.status(400).json({ error: "Falta el empleado_id" });
+        }
+        const horas = await horaService.getHorasByEmpleado(empleado_id);
+        res.json(horas);
+    } catch (error) {
+        console.error("Error obteniendo registro_horas:", error);
+        res.status(500).json({ error: obtenerFraseAleatoria() });
+    }
+};
+
 const iniciarJornada = async (req, res) => {
     try {
         const { empleado_id } = req.body;
@@ -56,6 +70,27 @@ const terminarJornada = async (req, res) => {
     }
 };
 
+const cerrarManual = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { fin_trabajo } = req.body;
+
+        if (!fin_trabajo) {
+            return res.status(400).json({ error: "Falta proporcionar la hora de cierre.", frase: obtenerFraseAleatoria() });
+        }
+
+        const registroActualizado = await horaService.cerrarManual(id, fin_trabajo);
+
+        if (!registroActualizado) {
+            return res.status(404).json({ error: "Registro no encontrado.", frase: obtenerFraseAleatoria() });
+        }
+        res.json(registroActualizado);
+    } catch (error) {
+        console.error("Error cerrado manual:", error);
+        res.status(500).json({ error: obtenerFraseAleatoria() });
+    }
+};
+
 // --- NUEVO: Eliminar registro ---
 const deleteHora = async (req, res) => {
     try {
@@ -75,7 +110,9 @@ const deleteHora = async (req, res) => {
 
 module.exports = {
     getHoras,
+    getHorasByEmpleado,
     iniciarJornada,
     terminarJornada,
+    cerrarManual,
     deleteHora // Exportar
 };

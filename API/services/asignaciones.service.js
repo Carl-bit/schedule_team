@@ -6,12 +6,18 @@ const getAsignaciones = async () => {
     const query = `
         SELECT 
             a.asignacion_id,
+            a.empleado_id,
             e.nombre_empleado,
+            p.proyecto_id,
             p.nombre_proyecto,
-            a.rol_trabajo_id
+            p.cliente,
+            p.fecha_inicio,
+            p.fecha_entrega,
+            r.rol_trabajo
         FROM asignaciones a
         JOIN empleados e ON a.empleado_id = e.empleado_id
         JOIN proyectos p ON a.proyecto_id = p.proyecto_id
+        JOIN catalogo_roles r ON a.rol_trabajo_id = r.rol_trabajo_id
     `;
     const result = await pool.query(query);
     return result.rows;

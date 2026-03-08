@@ -9,11 +9,11 @@
         /* Espacio entre paneles */
 
         /* Aquí está la magia: 3 columnas.
-        - 250px: Panel izquierdo fijo
+        - 320px: Panel izquierdo fijo
         - 1fr: El calendario toma todo el espacio sobrante (flexible)
         - 300px: Panel derecho fijo
     */
-        grid-template-columns: 250px 1fr 300px;
+        grid-template-columns: 320px 1fr 300px;
 
         /* Color de fondo oscuro (como tu diseño) */
         color: white;

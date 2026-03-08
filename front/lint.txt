@@ -1,0 +1,32 @@
+﻿
+C:\Users\cagaj\Documents\repositorios\Schedule\front\app\dashboard\Trabajador\CalendarPanel.tsx
+    4:3   warning  'Settings2' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+  136:44  warning  'dateObj' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                @typescript-eslint/no-unused-vars
+  149:15  error    Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+C:\Users\cagaj\Documents\repositorios\Schedule\front\app\dashboard\Trabajador\CalendarPanel.tsx:149:15
+  147 |       } else {
+  148 |         newAssignments.push({
+> 149 |           id: Math.random().toString(36).substring(7),
+      |               ^^^^^^^^^^^^^ Cannot call impure function
+  150 |           dateStr,
+  151 |           labelId: activeLabel.id,
+  152 |           status: 'pending'                     react-hooks/purity
+  186:17  error    Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+C:\Users\cagaj\Documents\repositorios\Schedule\front\app\dashboard\Trabajador\CalendarPanel.tsx:186:17
+  184 |         if (!exists) {
+  185 |           newAssignments.push({
+> 186 |             id: Math.random().toString(36).substring(7),
+      |                 ^^^^^^^^^^^^^ Cannot call impure function
+  187 |             dateStr,
+  188 |             labelId: labelIdForDay,
+  189 |             status: 'pending'  react-hooks/purity
+  292:9   warning  'getColorButtonClasses' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+
+Γ£û 5 problems (2 errors, 3 warnings)
+

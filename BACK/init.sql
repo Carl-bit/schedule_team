@@ -20,6 +20,16 @@ CREATE TABLE catalogo_ausencias (
     tipo_id VARCHAR(50) PRIMARY KEY,
     descripcion VARCHAR(100) NOT NULL
 );
+CREATE TABLE catalogo_etiquetas (
+    etiqueta_id VARCHAR(50) PRIMARY KEY,
+    empleado_id VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    rango_horas VARCHAR(100) NOT NULL,
+    color VARCHAR(50) NOT NULL,
+    tipo VARCHAR(50) NOT NULL,
+    secuencia_patron JSON,
+    FOREIGN KEY (empleado_id) REFERENCES empleados(empleado_id)
+);
 -- 2. TABLAS PRINCIPALES
 CREATE TABLE empleados (
     empleado_id VARCHAR(50) PRIMARY KEY,
@@ -55,7 +65,9 @@ CREATE TABLE planificacion_horaria (
     empleado_id VARCHAR(50) NOT NULL,
     inicio_turno TIMESTAMP NOT NULL,
     fin_turno TIMESTAMP NOT NULL,
-    FOREIGN KEY (empleado_id) REFERENCES empleados(empleado_id)
+    estado_id INTEGER DEFAULT 1,
+    FOREIGN KEY (empleado_id) REFERENCES empleados(empleado_id),
+    FOREIGN KEY (estado_id) REFERENCES catalogo_estado(estado_id)
 );
 CREATE TABLE registro_horas (
     registro_id VARCHAR(50) PRIMARY KEY,
