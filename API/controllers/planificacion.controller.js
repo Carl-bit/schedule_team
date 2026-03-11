@@ -64,9 +64,30 @@ const savePlanificacionesBulk = async (req, res) => {
     }
 };
 
+const updateEstadoPlanificacion = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { estado_id } = req.body;
+
+        if (!estado_id) {
+            return res.status(400).json({ error: "Falta el estado_id." });
+        }
+
+        const actualizado = await planificacionService.updateEstadoPlanificacion(id, estado_id);
+        if (!actualizado) {
+            return res.status(404).json({ error: "Planificación no encontrada." });
+        }
+        res.json(actualizado);
+    } catch (error) {
+        console.error("Error actualizando estado de planificación:", error);
+        res.status(500).json({ error: obtenerFraseAleatoria() });
+    }
+};
+
 module.exports = {
     getPlanificacionByEmpleado,
     createPlanificacion,
     deletePlanificacion,
-    savePlanificacionesBulk
+    savePlanificacionesBulk,
+    updateEstadoPlanificacion
 };

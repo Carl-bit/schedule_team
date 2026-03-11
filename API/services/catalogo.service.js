@@ -27,15 +27,11 @@ const getPuestos = async () => {
 // --- GESTIÓN DE PUESTOS (Crear y Borrar) ---
 
 const createPuesto = async (nombrePuesto) => {
-    // Generamos un ID amigable, ej: "PUESTO_X7Z9" o un UUID completo
-    // Para simplificar y seguir tu patrón, usaremos UUID
     const id = crypto.randomUUID();
-
     const query = `
         INSERT INTO catalogo_empleado (puesto_empleado_id, puesto_empleado) 
         VALUES ($1, $2) 
         RETURNING *`;
-
     const values = [id, nombrePuesto];
     const result = await pool.query(query, values);
     return result.rows[0];
@@ -47,11 +43,70 @@ const deletePuesto = async (id) => {
     return result.rows[0];
 };
 
+// --- GESTIÓN DE ROLES ---
+
+const createRol = async (rol_trabajo_id, rol_trabajo) => {
+    const id = rol_trabajo_id || crypto.randomUUID();
+    const query = `
+        INSERT INTO catalogo_roles (rol_trabajo_id, rol_trabajo) 
+        VALUES ($1, $2) 
+        RETURNING *`;
+    const result = await pool.query(query, [id, rol_trabajo]);
+    return result.rows[0];
+};
+
+const deleteRol = async (id) => {
+    const query = 'DELETE FROM catalogo_roles WHERE rol_trabajo_id = $1 RETURNING *';
+    const result = await pool.query(query, [id]);
+    return result.rows[0];
+};
+
+// --- GESTIÓN DE ESTADOS ---
+
+const createEstado = async (estado) => {
+    const query = `
+        INSERT INTO catalogo_estado (estado) 
+        VALUES ($1) 
+        RETURNING *`;
+    const result = await pool.query(query, [estado]);
+    return result.rows[0];
+};
+
+const deleteEstado = async (id) => {
+    const query = 'DELETE FROM catalogo_estado WHERE estado_id = $1 RETURNING *';
+    const result = await pool.query(query, [id]);
+    return result.rows[0];
+};
+
+// --- GESTIÓN DE TIPOS DE AUSENCIA ---
+
+const createTipoAusencia = async (tipo_id, descripcion, requiere_aprobacion = true) => {
+    const id = tipo_id || crypto.randomUUID();
+    const query = `
+        INSERT INTO catalogo_ausencias (tipo_id, descripcion, requiere_aprobacion) 
+        VALUES ($1, $2, $3) 
+        RETURNING *`;
+    const result = await pool.query(query, [id, descripcion, requiere_aprobacion]);
+    return result.rows[0];
+};
+
+const deleteTipoAusencia = async (id) => {
+    const query = 'DELETE FROM catalogo_ausencias WHERE tipo_id = $1 RETURNING *';
+    const result = await pool.query(query, [id]);
+    return result.rows[0];
+};
+
 module.exports = {
     getRoles,
     getEstados,
     getAusencias,
     getPuestos,
     createPuesto,
-    deletePuesto
+    deletePuesto,
+    createRol,
+    deleteRol,
+    createEstado,
+    deleteEstado,
+    createTipoAusencia,
+    deleteTipoAusencia
 };

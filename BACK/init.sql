@@ -18,7 +18,8 @@ CREATE TABLE catalogo_estado (
 CREATE TABLE catalogo_ausencias (
     -- Tipos de ausencia
     tipo_id VARCHAR(50) PRIMARY KEY,
-    descripcion VARCHAR(100) NOT NULL
+    descripcion VARCHAR(100) NOT NULL,
+    requiere_aprobacion BOOLEAN DEFAULT true
 );
 CREATE TABLE catalogo_etiquetas (
     etiqueta_id VARCHAR(50) PRIMARY KEY,
@@ -66,8 +67,10 @@ CREATE TABLE planificacion_horaria (
     inicio_turno TIMESTAMP NOT NULL,
     fin_turno TIMESTAMP NOT NULL,
     estado_id INTEGER DEFAULT 1,
+    creado_por VARCHAR(50),
     FOREIGN KEY (empleado_id) REFERENCES empleados(empleado_id),
-    FOREIGN KEY (estado_id) REFERENCES catalogo_estado(estado_id)
+    FOREIGN KEY (estado_id) REFERENCES catalogo_estado(estado_id),
+    FOREIGN KEY (creado_por) REFERENCES empleados(empleado_id)
 );
 CREATE TABLE registro_horas (
     registro_id VARCHAR(50) PRIMARY KEY,
@@ -86,6 +89,8 @@ CREATE TABLE ausencias (
     tipo_ausencia_id VARCHAR(50) NOT NULL,
     inicio_ausencia TIMESTAMP NOT NULL,
     fin_ausencia TIMESTAMP NOT NULL,
+    estado_id INTEGER DEFAULT 1,
     FOREIGN KEY (empleado_id) REFERENCES empleados(empleado_id),
-    FOREIGN KEY (tipo_ausencia_id) REFERENCES catalogo_ausencias(tipo_id)
+    FOREIGN KEY (tipo_ausencia_id) REFERENCES catalogo_ausencias(tipo_id),
+    FOREIGN KEY (estado_id) REFERENCES catalogo_estado(estado_id)
 );

@@ -1,16 +1,75 @@
 'use client';
+import { useState, useEffect } from 'react';
 // 1. Importamos el componente que acabamos de crear
 import ContentProfile from './ContentProfile';
+
+const API_BASE = 'http://localhost:3000/api';
 
 interface MenuItemProps {
     icon: string;
     label: string;
     onClick: () => void;
-    badge?: number;
+    badges?: { count: number; color: string; label: string }[];
 }
 
 export default function ProfilePanel({ setVista }: { setVista: (vista: 'calendar' | 'equipos' | 'solicitudes' | 'resume') => void }) {
+    const [badgeEquipos, setBadgeEquipos] = useState(0);
+    const [badgeHoras, setBadgeHoras] = useState(0);
+    const [badgeAusencias, setBadgeAusencias] = useState(0);
 
+    useEffect(() => {
+        const fetchBadges = async () => {
+            try {
+                const storedData = localStorage.getItem('user_data');
+                if (!storedData) return;
+                const userData = JSON.parse(storedData);
+                const userId = userData.empleado_id;
+                const timestamp = Date.now();
+
+                const [asignacionesRes, planRes, horasRes, ausenciasRes] = await Promise.all([
+                    fetch(`${API_BASE}/asignaciones`),
+                    fetch(`${API_BASE}/planificacion/${userId}?t=${timestamp}`),
+                    fetch(`${API_BASE}/hora/${userId}?t=${timestamp}`),
+                    fetch(`${API_BASE}/ausencias/${userId}?t=${timestamp}`)
+                ]);
+
+                // Equipos
+                if (asignacionesRes.ok) {
+                    const data = await asignacionesRes.json();
+                    const proyectos = new Set<string>();
+                    data.forEach((item: any) => {
+                        if (item.empleado_id === userId) proyectos.add(item.proyecto_id);
+                    });
+                    setBadgeEquipos(proyectos.size);
+                }
+
+                // Horas pendientes
+                let horasPend = 0;
+                if (planRes.ok) {
+                    const planData = await planRes.json();
+                    horasPend += planData.filter((p: any) => p.estado_id === 1).length;
+                }
+                if (horasRes.ok) {
+                    const horasData = await horasRes.json();
+                    horasPend += horasData.filter((h: any) => h.estado_id === 1).length;
+                }
+                setBadgeHoras(horasPend);
+
+                // Ausencias pendientes
+                if (ausenciasRes.ok) {
+                    const ausData = await ausenciasRes.json();
+                    if (Array.isArray(ausData)) {
+                        const ausPend = ausData.filter((a: any) => a.requiere_aprobacion && a.estado_id === 1).length;
+                        setBadgeAusencias(ausPend);
+                    }
+                }
+            } catch (err) {
+                console.error('Error cargando badges:', err);
+            }
+        };
+
+        fetchBadges();
+    }, []);
 
     return (
         <aside className="w-80 flex flex-col gap-6 h-full transition-all duration-300">
@@ -41,7 +100,11 @@ export default function ProfilePanel({ setVista }: { setVista: (vista: 'calendar
                     icon="notifications"
                     label="Ver Solicitudes"
                     onClick={() => setVista('solicitudes')}
-                    badge={2}
+                    badges={[
+                        ...(badgeEquipos > 0 ? [{ count: badgeEquipos, color: 'bg-indigo-500 shadow-indigo-500/30', label: 'equipos' }] : []),
+                        ...(badgeHoras > 0 ? [{ count: badgeHoras, color: 'bg-amber-500 shadow-amber-500/30', label: 'horas' }] : []),
+                        ...(badgeAusencias > 0 ? [{ count: badgeAusencias, color: 'bg-rose-500 shadow-rose-500/30', label: 'ausencias' }] : [])
+                    ]}
                 />
             </nav>
 
@@ -50,7 +113,7 @@ export default function ProfilePanel({ setVista }: { setVista: (vista: 'calendar
 }
 
 // El componente MenuItem se queda aquí o puedes moverlo a /components/UI si quieres reutilizarlo en otros lados
-function MenuItem({ icon, label, onClick, badge = 0 }: MenuItemProps) {
+function MenuItem({ icon, label, onClick, badges = [] }: MenuItemProps) {
     return (
         <button
             onClick={onClick}
@@ -64,10 +127,18 @@ function MenuItem({ icon, label, onClick, badge = 0 }: MenuItemProps) {
                     {label}
                 </span>
             </div>
-            {badge > 0 && (
-                <span className="bg-pink-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-lg shadow-pink-500/20 animate-pulse">
-                    {badge}
-                </span>
+            {badges.length > 0 && (
+                <div className="flex items-center gap-1.5">
+                    {badges.map((b, i) => (
+                        <span
+                            key={i}
+                            title={b.label}
+                            className={`${b.color} text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-lg animate-pulse`}
+                        >
+                            {b.count}
+                        </span>
+                    ))}
+                </div>
             )}
         </button>
     );

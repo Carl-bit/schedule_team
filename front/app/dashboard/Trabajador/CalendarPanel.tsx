@@ -6,7 +6,9 @@ import {
 } from 'lucide-react';
 
 // --- TIPOS ---
-type ShiftType = 'work' | 'replacement' | 'vacation' | 'unavailable' | 'pattern';
+type ShiftType = 'work' | 'replacement' | 'vacation' | 'medical_leave' | 'admin_day' | 'dayoff' | 'pattern';
+
+const isAbsenceType = (type: ShiftType) => ['vacation', 'medical_leave', 'admin_day', 'dayoff'].includes(type);
 
 interface ShiftLabel {
   id: string;
@@ -18,13 +20,26 @@ interface ShiftLabel {
   patternSequence?: (string | null)[];
 }
 
+type EstadoId = 1 | 2 | 3 | 4 | 5;
+
 interface AssignedShift {
-  id: string;      // ID de la BD o local generado
-  dateStr: string; // YYYY-MM-DD
-  labelId: string; // Puede ser el nombre original desde la BD (por ahora)
-  status: 'pending' | 'approved';
-  source: 'plan' | 'registro';
+  id: string;
+  dateStr: string;
+  labelId: string;
+  estadoId: EstadoId;
+  source: 'plan' | 'registro' | 'ausencia';
 }
+
+const getEstadoInfo = (estadoId: EstadoId) => {
+  switch (estadoId) {
+    case 1: return { label: 'Pendiente', color: 'text-amber-400', border: 'border-amber-500/60' };
+    case 2: return { label: 'Aprobado', color: 'text-emerald-400', border: 'border-emerald-500/60' };
+    case 3: return { label: 'Solicitud de Corrección', color: 'text-orange-400', border: 'border-orange-500/60' };
+    case 4: return { label: 'En Revisión', color: 'text-sky-400', border: 'border-sky-500/60' };
+    case 5: return { label: 'Rechazado', color: 'text-red-400', border: 'border-red-500/60' };
+    default: return { label: 'Desconocido', color: 'text-gray-400', border: 'border-gray-500/60' };
+  }
+};
 
 const API_BASE = 'http://localhost:3000/api';
 
@@ -71,10 +86,12 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
       setIsLoading(true);
       try {
         const timestamp = Date.now();
-        const [planRes, horaRes, etiquetasRes] = await Promise.all([
+        const [planRes, horaRes, etiquetasRes, ausenciasRes, catAusRes] = await Promise.all([
           fetch(`${API_BASE}/planificacion/${empleado_id}?t=${timestamp}`),
           fetch(`${API_BASE}/hora/${empleado_id}?t=${timestamp}`),
-          fetch(`${API_BASE}/etiquetas/${empleado_id}?t=${timestamp}`)
+          fetch(`${API_BASE}/etiquetas/${empleado_id}?t=${timestamp}`),
+          fetch(`${API_BASE}/ausencias/${empleado_id}?t=${timestamp}`).catch(() => null),
+          fetch(`${API_BASE}/catalogos/ausencias?t=${timestamp}`).catch(() => null)
         ]);
 
         let allMapped: AssignedShift[] = [];
@@ -138,7 +155,7 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
               id: item.plan_id,
               dateStr,
               labelId: matchedLabelId,
-              status: item.estado_id === 2 ? 'approved' : 'pending' as const,
+              estadoId: (item.estado_id || 1) as EstadoId,
               source: 'plan' as const
             };
           });
@@ -168,11 +185,64 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
               id: item.registro_id,
               dateStr: dateStr,
               labelId: matchedLabelId,
-              status: item.estado_id === 1 ? 'pending' : 'approved' as const,
+              estadoId: (item.estado_id || 1) as EstadoId,
               source: 'registro' as const
             };
           });
           allMapped = [...allMapped, ...mappedHora];
+        }
+
+        // --- Ausencias desde la BD ---
+        if (ausenciasRes && ausenciasRes.ok) {
+          try {
+            const ausData = await ausenciasRes.json();
+            if (Array.isArray(ausData)) {
+              const mappedAus = ausData.map((aus: any) => {
+                const inicioDate = new Date(aus.inicio_ausencia);
+                const finDate = new Date(aus.fin_ausencia);
+                const dateStr = `${inicioDate.getFullYear()}-${String(inicioDate.getMonth() + 1).padStart(2, '0')}-${String(inicioDate.getDate()).padStart(2, '0')}`;
+
+                // Find matching ausencia label by motivo
+                let matchedLabelId = currentKnownLabels.find(l =>
+                  isAbsenceType(l.type) && l.name === aus.motivo
+                )?.id;
+
+                if (!matchedLabelId) {
+                  // Create virtual label for the ausencia
+                  const virtualId = `VIRTUAL_AUS_${aus.ausencia_id}`;
+                  const virtualLabel: ShiftLabel = {
+                    id: virtualId,
+                    name: aus.motivo || 'Ausencia',
+                    timeRange: 'Todo el día',
+                    color: aus.requiere_aprobacion ? 'bg-red-500' : 'bg-sky-500',
+                    type: aus.requiere_aprobacion ? 'vacation' : 'dayoff'
+                  };
+                  currentKnownLabels.push(virtualLabel);
+                  newVirtualLabels.push(virtualLabel);
+                  matchedLabelId = virtualId;
+                }
+
+                // For multi-day ausencias, create one entry per day
+                const entries: AssignedShift[] = [];
+                const current = new Date(inicioDate);
+                while (current <= finDate) {
+                  const ds = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+                  entries.push({
+                    id: `${aus.ausencia_id}_${ds}`,
+                    dateStr: ds,
+                    labelId: matchedLabelId,
+                    estadoId: (aus.estado_id || 1) as EstadoId,
+                    source: 'ausencia' as const
+                  });
+                  current.setDate(current.getDate() + 1);
+                }
+                return entries;
+              }).flat();
+              allMapped = [...allMapped, ...mappedAus];
+            }
+          } catch (e) {
+            console.error('Error parsing ausencias:', e);
+          }
         }
 
         if (newVirtualLabels.length > 0) {
@@ -275,7 +345,7 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
           newAssignments.splice(existingPlanIndex, 1);
         } else {
           // Si es otra etiqueta distinta, reemplaza y actualiza manteniendo su ID
-          newAssignments[existingPlanIndex] = { ...newAssignments[existingPlanIndex], labelId: activeLabel.id, status: 'pending' };
+          newAssignments[existingPlanIndex] = { ...newAssignments[existingPlanIndex], labelId: activeLabel.id, estadoId: 1 as EstadoId };
         }
       } else {
         newAssignments.push({
@@ -283,7 +353,7 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
           id: Math.random().toString(36).substring(7),
           dateStr,
           labelId: activeLabel.id,
-          status: 'pending',
+          estadoId: 1 as EstadoId,
           source: 'plan'
         });
       }
@@ -317,7 +387,7 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
             newAssignments[existingPlanIndex] = {
               ...newAssignments[existingPlanIndex],
               labelId: labelIdForDay,
-              status: 'pending'
+              estadoId: 1 as EstadoId
             };
           }
         } else {
@@ -326,7 +396,7 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
             id: Math.random().toString(36).substring(7),
             dateStr,
             labelId: labelIdForDay,
-            status: 'pending',
+            estadoId: 1 as EstadoId,
             source: 'plan'
           });
         }
@@ -350,11 +420,21 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
 
   const handleSave = async () => {
     try {
-      // Formatear para BD: { plan_id, inicio_turno, fin_turno }
-      // Nota: Convertimos los dateStr de vuelta a timestamps.
-      // Acá deberías cruzar con la etiqueta real (labels) para extraer la hora exacta de trabajo.
-      // Por simplicidad en este paso, asignaremos 09:00 a 18:00 si es el "Turno A" genérico.
-      const turnosBulk = assignments.filter(a => a.source !== 'registro').map(a => {
+      // Separar asignaciones: work/replacement → planificacion, vacation/unavailable → ausencias
+      const planAssignments = assignments.filter(a => {
+        if (a.source === 'registro' || a.source === 'ausencia') return false;
+        const l = labels.find(lb => lb.id === a.labelId);
+        return l && !isAbsenceType(l.type);
+      });
+
+      const ausenciaAssignments = assignments.filter(a => {
+        if (a.source === 'registro') return false;
+        const l = labels.find(lb => lb.id === a.labelId);
+        return l && isAbsenceType(l.type);
+      });
+
+      // --- 1. Guardar planificaciones (solo work/replacement) ---
+      const turnosBulk = planAssignments.map(a => {
         const l = labels.find(lb => lb.id === a.labelId);
 
         let hhInicio = 9; let minInicio = 0;
@@ -393,26 +473,114 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
           plan_id: a.id,
           inicio_turno: !isNaN(inicio.getTime()) ? toLocalISOString(inicio) : toLocalISOString(new Date()),
           fin_turno: !isNaN(fin.getTime()) ? toLocalISOString(fin) : toLocalISOString(new Date()),
-          estado_id: a.status === 'pending' ? 1 : 2
+          estado_id: a.estadoId
         };
       });
 
-      const payload = {
-        turnos: turnosBulk
-      };
-
-      const res = await fetch(`${API_BASE}/planificacion/bulk/${empleado_id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      // --- 2. Guardar ausencias (vacation/unavailable) ---
+      // Agrupar por labelId para crear ausencias con rango de fechas
+      const ausenciasByLabel = new Map<string, string[]>();
+      ausenciaAssignments.forEach(a => {
+        if (!ausenciasByLabel.has(a.labelId)) ausenciasByLabel.set(a.labelId, []);
+        ausenciasByLabel.get(a.labelId)!.push(a.dateStr);
       });
 
-      if (res.ok) {
-        setNotification({ isOpen: true, message: "Horario guardado en la Base de Datos con éxito.", type: 'success' });
+      // Fetch catalogo_ausencias para mapear tipo
+      let catAus: any[] = [];
+      try {
+        const catRes = await fetch(`${API_BASE}/catalogos/ausencias`);
+        if (catRes.ok) catAus = await catRes.json();
+      } catch (e) { console.error('Error fetching catalogo_ausencias:', e); }
+
+      const ausenciaPromises: Promise<any>[] = [];
+      ausenciasByLabel.forEach((dates, labelId) => {
+        const label = labels.find(l => l.id === labelId);
+        if (!label) return;
+
+        // Buscar tipo_ausencia_id en catálogo por tipo exacto
+        const tipoMapping: Record<string, string[]> = {
+          'vacation': ['vacacion'],
+          'medical_leave': ['licencia', 'médica', 'medica'],
+          'admin_day': ['administrativo'],
+          'dayoff': ['libre', 'día libre', 'dia libre']
+        };
+
+        const searchTerms = tipoMapping[label.type] || [];
+        let tipoId = catAus.find((c: any) =>
+          searchTerms.some(term => c.descripcion?.toLowerCase().includes(term))
+        )?.tipo_id;
+
+        // Fallback: buscar por nombre exacto de la etiqueta
+        if (!tipoId) {
+          tipoId = catAus.find((c: any) =>
+            c.descripcion?.toLowerCase().includes(label.name.toLowerCase())
+          )?.tipo_id || catAus[0]?.tipo_id;
+        }
+
+        if (!tipoId) {
+          console.warn('No se encontró tipo_ausencia_id para:', label.name);
+          return;
+        }
+
+        // Ordenar fechas y agrupar en rangos continuos
+        const sortedDates = [...dates].sort();
+        const ranges: { inicio: string; fin: string }[] = [];
+        let rangeStart = sortedDates[0];
+        let rangePrev = sortedDates[0];
+
+        for (let i = 1; i < sortedDates.length; i++) {
+          const prevDate = new Date(rangePrev);
+          const currDate = new Date(sortedDates[i]);
+          const diffDays = (currDate.getTime() - prevDate.getTime()) / (1000 * 3600 * 24);
+
+          if (diffDays > 1) {
+            ranges.push({ inicio: rangeStart, fin: rangePrev });
+            rangeStart = sortedDates[i];
+          }
+          rangePrev = sortedDates[i];
+        }
+        ranges.push({ inicio: rangeStart, fin: rangePrev });
+
+        // Crear una ausencia por cada rango continuo
+        ranges.forEach(range => {
+          ausenciaPromises.push(
+            fetch(`${API_BASE}/ausencias`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                empleado_id: empleado_id,
+                tipo_ausencia_id: tipoId,
+                inicio: `${range.inicio}T00:00:00`,
+                fin: `${range.fin}T23:59:59`
+              })
+            })
+          );
+        });
+      });
+
+      // Ejecutar ambos en paralelo
+      const results = await Promise.all([
+        turnosBulk.length > 0
+          ? fetch(`${API_BASE}/planificacion/bulk/${empleado_id}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ turnos: turnosBulk })
+            })
+          : Promise.resolve({ ok: true }),
+        ...ausenciaPromises
+      ]);
+
+      const allOk = results.every((r: any) => r.ok !== false);
+
+      if (allOk) {
+        const msgs: string[] = [];
+        if (turnosBulk.length > 0) msgs.push(`${turnosBulk.length} turnos`);
+        if (ausenciaPromises.length > 0) msgs.push(`${ausenciaPromises.length} ausencia(s)`);
+        setNotification({ isOpen: true, message: `Guardado: ${msgs.join(' y ')} registrado(s) correctamente.`, type: 'success' });
         setHistory([]);
         window.dispatchEvent(new Event('scheduleUpdated'));
       } else {
-        setNotification({ isOpen: true, message: "Ocurrió un error guardando el horario.", type: 'error' });
+        setNotification({ isOpen: true, message: "Ocurrió un error guardando. Revisa la consola.", type: 'error' });
       }
     } catch (err) {
       console.error(err);
@@ -476,7 +644,7 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
 
       const newAssignments = assignments.map(a => {
         if (a.id === registroId) {
-          return { ...a, status: 'approved' as const };
+          return { ...a, estadoId: 2 as EstadoId };
         }
         return a;
       });
@@ -489,38 +657,63 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
 
   const handleDeleteAssignment = (assignment: AssignedShift, event: React.MouseEvent) => {
     event.stopPropagation();
-    if (assignment.source !== 'plan') return; // No se puede borrar registro real de aquí
+    if (assignment.source !== 'plan' && assignment.source !== 'ausencia') return;
+
+    const isAus = assignment.source === 'ausencia';
+    const msg = isAus
+      ? "¿Estás seguro de que quieres eliminar esta ausencia?"
+      : "¿Estás seguro de que quieres eliminar este turno del día seleccionado?";
 
     setConfirmDialog({
       isOpen: true,
-      message: "¿Estás seguro de que quieres eliminar este turno del día seleccionado?",
+      message: msg,
       onConfirm: async () => {
         try {
-          // Intentar borrar en backend por si ya está guardado (si falla por 404 es porque solo era local)
-          const res = await fetch(`${API_BASE}/planificacion/${assignment.id}`, { method: 'DELETE' });
+          let res;
+          if (isAus) {
+            // Para ausencias, el ID tiene formato "ausencia_id_dateStr" — extraer el ausencia_id real
+            const ausenciaId = assignment.id.includes('_') ? assignment.id.split('_').slice(0, -3).join('_') || assignment.id.substring(0, assignment.id.lastIndexOf('_' + assignment.dateStr.split('-')[0])) : assignment.id;
+            // Intentar extraer el UUID correcto (todo antes del último _YYYY-MM-DD)
+            const lastDateIdx = assignment.id.lastIndexOf('_' + assignment.dateStr);
+            const realId = lastDateIdx > 0 ? assignment.id.substring(0, lastDateIdx) : assignment.id;
+            res = await fetch(`${API_BASE}/ausencias/${realId}`, { method: 'DELETE' });
 
-          if (res.ok || res.status === 404 || res.status === 400 || res.status === 500) {
-            // Eliminar de las asignaciones locales
-            const newAssignments = assignments.filter(a => a.id !== assignment.id);
-            updateAssignmentsState(newAssignments);
+            if (res.ok) {
+              // Eliminar TODAS las entradas de esta ausencia (puede ser multi-día)
+              const newAssignments = assignments.filter(a => !a.id.startsWith(realId + '_'));
+              updateAssignmentsState(newAssignments);
 
-            // Cerrar modal de detalles si ya no quedan eventos para ese día
-            if (newAssignments.filter(a => a.dateStr === selectedDayDetails).length === 0) {
-              setSelectedDayDetails(null);
+              if (newAssignments.filter(a => a.dateStr === selectedDayDetails).length === 0) {
+                setSelectedDayDetails(null);
+              }
+
+              setNotification({ isOpen: true, message: "Ausencia eliminada correctamente.", type: 'success' });
+              window.dispatchEvent(new Event('scheduleUpdated'));
+            } else {
+              setNotification({ isOpen: true, message: "Error al eliminar la ausencia.", type: 'error' });
             }
-
-            // Notification solo visible temporalmente
-            setNotification({ isOpen: true, message: "Turno eliminado del calendario.", type: 'success' });
-            window.dispatchEvent(new Event('scheduleUpdated'));
           } else {
-            setNotification({ isOpen: true, message: "Error al borrar en la Base de Datos.", type: 'error' });
+            res = await fetch(`${API_BASE}/planificacion/${assignment.id}`, { method: 'DELETE' });
+
+            if (res.ok || res.status === 404 || res.status === 400 || res.status === 500) {
+              const newAssignments = assignments.filter(a => a.id !== assignment.id);
+              updateAssignmentsState(newAssignments);
+
+              if (newAssignments.filter(a => a.dateStr === selectedDayDetails).length === 0) {
+                setSelectedDayDetails(null);
+              }
+
+              setNotification({ isOpen: true, message: "Turno eliminado del calendario.", type: 'success' });
+              window.dispatchEvent(new Event('scheduleUpdated'));
+            } else {
+              setNotification({ isOpen: true, message: "Error al borrar en la Base de Datos.", type: 'error' });
+            }
           }
         } catch (err) {
           console.error(err);
-          // Fallback a borrarlo localmente en caso de error de red si no estaba guardado
           const newAssignments = assignments.filter(a => a.id !== assignment.id);
           updateAssignmentsState(newAssignments);
-          setNotification({ isOpen: true, message: "Turno eliminado localmente (Error DB).", type: 'success' });
+          setNotification({ isOpen: true, message: "Eliminado localmente (Error DB).", type: 'success' });
         } finally {
           setConfirmDialog(null);
         }
@@ -884,9 +1077,10 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
 
                       return (
                         <div key={assignment.id} className="relative group w-full shrink-0">
+                          {(() => { const ei = getEstadoInfo(assignment.estadoId); return (
                           <div className={`
                             flex items-center gap-2 px-2 py-1.5 bg-black/50 rounded-lg border border-gray-700/60 shadow-sm
-                            ${assignment.status === 'pending' ? 'border-dashed border-amber-500/60 opacity-95' : 'border-solid'}
+                            ${assignment.estadoId !== 2 ? `border-dashed ${ei.border} opacity-95` : 'border-solid'}
                             hover:border-gray-400 transition-colors backdrop-blur-md
                           `}>
                             <span className={`w-1.5 h-full absolute left-0 top-0 bottom-0 rounded-l-lg shrink-0 ${labelInfo.color} opacity-90`}></span>
@@ -896,17 +1090,18 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
                             </div>
 
                             <div className="ml-auto flex items-center shrink-0 pl-1 z-10 bg-black/40 rounded-full p-0.5">
-                              {assignment.status === 'pending' ? (
-                                <div title="Pendiente de aprobación por Jefatura" className="flex items-center justify-center">
-                                  <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
-                                </div>
-                              ) : (
-                                <div title="Aprobado" className="flex items-center justify-center">
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                                </div>
-                              )}
+                              <div title={ei.label} className="flex items-center justify-center">
+                                {assignment.estadoId === 2 ? (
+                                  <CheckCircle2 className={`w-3.5 h-3.5 ${ei.color}`} />
+                                ) : assignment.estadoId === 5 ? (
+                                  <X className={`w-3.5 h-3.5 ${ei.color}`} />
+                                ) : (
+                                  <AlertCircle className={`w-3.5 h-3.5 ${ei.color}`} />
+                                )}
+                              </div>
                             </div>
                           </div>
+                          ); })()}
                         </div>
                       );
                     })}
@@ -1035,8 +1230,8 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
                     <label className="text-xs font-bold text-gray-400">Rango de Horas</label>
                     <input
                       type="text" value={createData.timeRange} onChange={e => setCreateData({ ...createData, timeRange: e.target.value })}
-                      disabled={createData.type === 'vacation' || createData.type === 'unavailable'}
-                      className={`bg-black/30 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 text-sm ${(createData.type === 'vacation' || createData.type === 'unavailable') ? 'opacity-50 cursor-not-allowed text-gray-500' : ''
+                      disabled={isAbsenceType(createData.type)}
+                      className={`bg-black/30 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 text-sm ${isAbsenceType(createData.type) ? 'opacity-50 cursor-not-allowed text-gray-500' : ''
                         }`} placeholder="00:00 - 00:00"
                     />
                   </div>
@@ -1049,7 +1244,7 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
                         let newTimeRange = createData.timeRange;
 
                         // Switch automatically to 'Todo el día' if it's an absence type
-                        if (newType === 'vacation' || newType === 'unavailable') {
+                        if (isAbsenceType(newType)) {
                           newTimeRange = 'Todo el día';
                         } else if (newTimeRange === 'Todo el día') {
                           newTimeRange = ''; // Reset standard input to empty to let them type
@@ -1061,8 +1256,10 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
                     >
                       <option value="work">Turno Trabajo</option>
                       <option value="replacement">Reemplazo</option>
-                      <option value="unavailable">Día Libre / No Disponible</option>
-                      <option value="vacation">Vacaciones / Licencia Médica</option>
+                      <option value="vacation">Vacaciones</option>
+                      <option value="medical_leave">Licencia Médica</option>
+                      <option value="admin_day">Día Administrativo</option>
+                      <option value="dayoff">Día Libre</option>
                     </select>
                   </div>
                 </div>
@@ -1131,7 +1328,7 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
             <div className="flex flex-col gap-2 mb-4 pt-4 border-t border-gray-700/50 shrink-0">
               <label className="text-xs font-bold text-gray-400">Color de la Etiqueta / Patrón</label>
               <div className="flex gap-3">
-                {(createData.type === 'vacation' || createData.type === 'unavailable')
+                {isAbsenceType(createData.type)
                   ? ['bg-red-600', 'bg-red-400', 'bg-orange-600', 'bg-orange-400', 'bg-blue-600', 'bg-sky-500'].map(c => (
                     <button key={c} onClick={() => setCreateData({ ...createData, color: c })} className={`w-8 h-8 rounded-full shadow-md ${c} ${createData.color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-[#1e2024] scale-110' : 'hover:scale-110'} transition-all cursor-pointer`} title="Seleccionar Color" />
                   ))
@@ -1206,7 +1403,7 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
                     </div>
 
                     <div className="flex shrink-0 items-center">
-                      {assignment.status === 'pending' ? (
+                      {assignment.estadoId === 1 ? (
                         assignment.source === 'registro' ? (
                           <div className="flex items-center gap-2">
                             <input
@@ -1224,17 +1421,23 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
                             </button>
                           </div>
                         ) : (
-                          <div title="Pendiente de aprobación" className="flex items-center gap-1.5 bg-amber-500/10 text-amber-400 px-2.5 py-1 rounded-full text-[10px] font-bold border border-amber-500/20">
+                          <div title="Pendiente" className="flex items-center gap-1.5 bg-amber-500/10 text-amber-400 px-2.5 py-1 rounded-full text-[10px] font-bold border border-amber-500/20">
                             <AlertCircle className="w-3 h-3" /> Pendiente
                           </div>
                         )
-                      ) : (
-                        <div title="Aprobado" className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded-full text-[10px] font-bold border border-emerald-500/20">
-                          <CheckCircle2 className="w-3 h-3" /> Aprobado
-                        </div>
-                      )}
+                      ) : (() => {
+                        const ei = getEstadoInfo(assignment.estadoId);
+                        const bgMap: Record<number, string> = { 2: 'bg-emerald-500/10', 3: 'bg-orange-500/10', 4: 'bg-sky-500/10', 5: 'bg-red-500/10' };
+                        const borderMap: Record<number, string> = { 2: 'border-emerald-500/20', 3: 'border-orange-500/20', 4: 'border-sky-500/20', 5: 'border-red-500/20' };
+                        const IconComp = assignment.estadoId === 2 ? CheckCircle2 : assignment.estadoId === 5 ? X : AlertCircle;
+                        return (
+                          <div title={ei.label} className={`flex items-center gap-1.5 ${bgMap[assignment.estadoId] || 'bg-gray-500/10'} ${ei.color} px-2.5 py-1 rounded-full text-[10px] font-bold border ${borderMap[assignment.estadoId] || 'border-gray-500/20'}`}>
+                            <IconComp className="w-3 h-3" /> {ei.label}
+                          </div>
+                        );
+                      })()}
 
-                      {assignment.source === 'plan' && (
+                      {(assignment.source === 'plan' || assignment.source === 'ausencia') && (
                         <button
                           title="Eliminar este turno"
                           onClick={(e) => handleDeleteAssignment(assignment, e)}
