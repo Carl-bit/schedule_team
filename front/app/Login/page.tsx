@@ -2,7 +2,7 @@
 
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import Silk from '../components/Backgrounds/silk';
+import Square from '../components/Backgrounds/Square';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -58,9 +58,12 @@ export default function LoginPage() {
     return (
         <div className="relative min-h-screen flex items-center justify-center bg-gray-900 text-white overflow-hidden">
             <div className="absolute inset-0 z-0">
-                <Silk
-                    color="#29ff86" // El color verde menta que te gustó
-                // Puedes jugar con estos valores según la documentación
+                <Square
+                    direction="diagonal"
+                    speed={0.3}
+                    borderColor="#1e3a8aff"
+                    hoverFillColor="#06b6d4"
+                    squareSize={63}
                 />
             </div>
 

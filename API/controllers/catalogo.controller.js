@@ -93,6 +93,20 @@ const deletePuesto = async (req, res) => {
     }
 };
 
+const updatePuesto = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nombre } = req.body;
+        if (!nombre) return res.status(400).json({ error: 'Falta el nombre.' });
+        const updated = await catalogoService.updatePuesto(id, nombre);
+        if (!updated) return res.status(404).json({ error: 'Puesto no encontrado.' });
+        res.json(updated);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: obtenerFraseAleatoria() });
+    }
+};
+
 // --- ROLES ---
 const createRol = async (req, res) => {
     try {
@@ -124,6 +138,20 @@ const deleteRol = async (req, res) => {
                 frase: obtenerFraseAleatoria()
             });
         }
+        res.status(500).json({ error: obtenerFraseAleatoria() });
+    }
+};
+
+const updateRol = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { rol_trabajo } = req.body;
+        if (!rol_trabajo) return res.status(400).json({ error: 'Falta el nombre del rol.' });
+        const updated = await catalogoService.updateRol(id, rol_trabajo);
+        if (!updated) return res.status(404).json({ error: 'Rol no encontrado.' });
+        res.json(updated);
+    } catch (error) {
+        console.error(error);
         res.status(500).json({ error: obtenerFraseAleatoria() });
     }
 };
@@ -163,6 +191,20 @@ const deleteEstado = async (req, res) => {
     }
 };
 
+const updateEstado = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { estado } = req.body;
+        if (!estado) return res.status(400).json({ error: 'Falta el nombre del estado.' });
+        const updated = await catalogoService.updateEstado(id, estado);
+        if (!updated) return res.status(404).json({ error: 'Estado no encontrado.' });
+        res.json(updated);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: obtenerFraseAleatoria() });
+    }
+};
+
 // --- TIPOS DE AUSENCIA ---
 const createTipoAusencia = async (req, res) => {
     try {
@@ -198,6 +240,19 @@ const deleteTipoAusencia = async (req, res) => {
     }
 };
 
+const updateTipoAusencia = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { descripcion, requiere_aprobacion } = req.body;
+        const updated = await catalogoService.updateTipoAusencia(id, descripcion, requiere_aprobacion);
+        if (!updated) return res.status(404).json({ error: 'Tipo de ausencia no encontrado.' });
+        res.json(updated);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: obtenerFraseAleatoria() });
+    }
+};
+
 module.exports = {
     getRoles,
     getEstados,
@@ -205,10 +260,14 @@ module.exports = {
     getPuestos,
     createPuesto,
     deletePuesto,
+    updatePuesto,
     createRol,
     deleteRol,
+    updateRol,
     createEstado,
     deleteEstado,
+    updateEstado,
     createTipoAusencia,
-    deleteTipoAusencia
+    deleteTipoAusencia,
+    updateTipoAusencia
 };

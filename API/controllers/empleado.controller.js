@@ -63,16 +63,34 @@ const createEmpleado = async (req, res) => {
 const updateEmpleado = async (req, res) => {
     try {
         const { id } = req.params;
-        const { nombre_empleado, alias_empleado, telefono_empleado } = req.body;
 
-        const empleadoActualizado = await empleadoService.updateEmpleado(id, nombre_empleado, alias_empleado, telefono_empleado);
+        const empleadoActualizado = await empleadoService.updateEmpleado(id, req.body);
 
         if (!empleadoActualizado) {
             return res.status(404).json({ error: "No encontré a quién actualizar." });
         }
+
+        // Enviar email si se cambió el correo
+        if (req.body.correo_empleado) {
+            try {
+                const emailService = require('../services/email.service');
+                await emailService.sendEmailCambio(
+                    req.body.correo_empleado,
+                    empleadoActualizado.nombre_empleado || 'Empleado',
+                    'Correo electrónico',
+                    new Date().toLocaleString('es-CL')
+                );
+            } catch (emailErr) {
+                console.log('Email no enviado (SMTP no configurado):', emailErr.message);
+            }
+        }
+
         res.json(empleadoActualizado);
 
     } catch (error) {
+        if (error.code === '23505') {
+            return res.status(400).json({ error: "Ese correo ya está registrado." });
+        }
         res.status(500).json({ error: obtenerFraseAleatoria() });
     }
 };

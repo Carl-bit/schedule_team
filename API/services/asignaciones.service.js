@@ -44,8 +44,20 @@ const deleteAsignacion = async (id) => {
     return result.rows[0];
 };
 
+// 4. ACTUALIZAR ROL DE ASIGNACIÓN
+const updateAsignacion = async (id, rol_trabajo_id) => {
+    const query = `
+        UPDATE asignaciones
+        SET rol_trabajo_id = $1
+        WHERE asignacion_id = $2
+        RETURNING *`;
+    const result = await pool.query(query, [rol_trabajo_id, id]);
+    return result.rows[0];
+};
+
 module.exports = {
     getAsignaciones,
     createAsignacion,
-    deleteAsignacion
+    deleteAsignacion,
+    updateAsignacion
 };

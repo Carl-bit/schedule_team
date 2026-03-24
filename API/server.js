@@ -16,6 +16,7 @@ const ausenciaRoutes = require('./routes/ausencia.routes');
 const authRoutes = require('./routes/auth.routes');
 const planificacionRoutes = require('./routes/planificacion.route');
 const etiquetaRoutes = require('./routes/etiqueta.route');
+const solicitudRoutes = require('./routes/solicitud.route');
 
 app.use(express.json()); // Middleware para entender JSON (importante para el futuro)
 
@@ -36,6 +37,7 @@ app.use('/api/ausencias', ausenciaRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/planificacion', planificacionRoutes);
 app.use('/api/etiquetas', etiquetaRoutes);
+app.use('/api/solicitudes', solicitudRoutes);
 
 
 app.get('/', async (req, res) => {

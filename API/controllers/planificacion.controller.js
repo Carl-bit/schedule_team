@@ -1,6 +1,16 @@
 const planificacionService = require('../services/planificacion.service');
 const { obtenerFraseAleatoria } = require('../utils/naas/naas');
 
+const getAllPlanificaciones = async (req, res) => {
+    try {
+        const planificaciones = await planificacionService.getAllPlanificaciones();
+        res.json(planificaciones);
+    } catch (error) {
+        console.error("Error obteniendo todas las planificaciones:", error);
+        res.status(500).json({ error: obtenerFraseAleatoria() });
+    }
+};
+
 const getPlanificacionByEmpleado = async (req, res) => {
     try {
         const { empleado_id } = req.params;
@@ -85,6 +95,7 @@ const updateEstadoPlanificacion = async (req, res) => {
 };
 
 module.exports = {
+    getAllPlanificaciones,
     getPlanificacionByEmpleado,
     createPlanificacion,
     deletePlanificacion,

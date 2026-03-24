@@ -27,7 +27,7 @@ interface AssignedShift {
   dateStr: string;
   labelId: string;
   estadoId: EstadoId;
-  source: 'plan' | 'registro' | 'ausencia';
+  source: 'plan' | 'registro' | 'ausencia' | 'cobertura';
 }
 
 const getEstadoInfo = (estadoId: EstadoId) => {
@@ -86,12 +86,13 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
       setIsLoading(true);
       try {
         const timestamp = Date.now();
-        const [planRes, horaRes, etiquetasRes, ausenciasRes, catAusRes] = await Promise.all([
+        const [planRes, horaRes, etiquetasRes, ausenciasRes, catAusRes, coberturasRes] = await Promise.all([
           fetch(`${API_BASE}/planificacion/${empleado_id}?t=${timestamp}`),
           fetch(`${API_BASE}/hora/${empleado_id}?t=${timestamp}`),
           fetch(`${API_BASE}/etiquetas/${empleado_id}?t=${timestamp}`),
           fetch(`${API_BASE}/ausencias/${empleado_id}?t=${timestamp}`).catch(() => null),
-          fetch(`${API_BASE}/catalogos/ausencias?t=${timestamp}`).catch(() => null)
+          fetch(`${API_BASE}/catalogos/ausencias?t=${timestamp}`).catch(() => null),
+          fetch(`${API_BASE}/solicitudes/empleado/${empleado_id}?t=${timestamp}`).catch(() => null)
         ]);
 
         let allMapped: AssignedShift[] = [];
@@ -242,6 +243,55 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
             }
           } catch (e) {
             console.error('Error parsing ausencias:', e);
+          }
+        }
+
+        // --- Solicitudes de Cobertura ---
+        if (coberturasRes && coberturasRes.ok) {
+          try {
+            const cobData = await coberturasRes.json();
+            if (Array.isArray(cobData)) {
+              // Solo mostrar pendientes y aceptadas (no rechazadas)
+              const relevantCob = cobData.filter((c: any) => c.estado === 'pendiente' || c.estado === 'aceptada');
+              const mappedCob = relevantCob.map((cob: any) => {
+                const inicioDate = new Date(cob.fecha_inicio);
+                const finDate = new Date(cob.fecha_fin);
+
+                // Virtual label for cobertura
+                const isPending = cob.estado === 'pendiente';
+                const virtualId = `VIRTUAL_COB_${cob.solicitud_id}`;
+                const virtualLabel: ShiftLabel = {
+                  id: virtualId,
+                  name: isPending ? `Reemplazo (pendiente)` : `Reemplazo`,
+                  timeRange: 'Todo el día',
+                  color: isPending ? 'bg-violet-500' : 'bg-purple-600',
+                  type: 'replacement'
+                };
+                if (!currentKnownLabels.find(l => l.id === virtualId)) {
+                  currentKnownLabels.push(virtualLabel);
+                  newVirtualLabels.push(virtualLabel);
+                }
+
+                // Create one entry per day in the range
+                const entries: AssignedShift[] = [];
+                const current = new Date(inicioDate);
+                while (current <= finDate) {
+                  const ds = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+                  entries.push({
+                    id: `COB_${cob.solicitud_id}_${ds}`,
+                    dateStr: ds,
+                    labelId: virtualId,
+                    estadoId: (isPending ? 1 : 2) as EstadoId,
+                    source: 'cobertura' as const
+                  });
+                  current.setDate(current.getDate() + 1);
+                }
+                return entries;
+              }).flat();
+              allMapped = [...allMapped, ...mappedCob];
+            }
+          } catch (e) {
+            console.error('Error parsing coberturas:', e);
           }
         }
 

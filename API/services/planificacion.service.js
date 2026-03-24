@@ -1,5 +1,17 @@
 const pool = require('../config/db');
 
+// Obtener TODAS las planificaciones (para revisión del líder)
+const getAllPlanificaciones = async () => {
+    const query = `
+        SELECT p.*, e.nombre_empleado 
+        FROM planificacion_horaria p
+        JOIN empleados e ON p.empleado_id = e.empleado_id
+        ORDER BY p.inicio_turno DESC
+    `;
+    const result = await pool.query(query);
+    return result.rows;
+};
+
 // Obtener planificaciones por empleado
 const getPlanificacionByEmpleado = async (empleado_id) => {
     const query = 'SELECT * FROM planificacion_horaria WHERE empleado_id = $1 ORDER BY inicio_turno ASC';
@@ -65,6 +77,7 @@ const updateEstadoPlanificacion = async (plan_id, estado_id) => {
 };
 
 module.exports = {
+    getAllPlanificaciones,
     getPlanificacionByEmpleado,
     createPlanificacion,
     deletePlanificacion,

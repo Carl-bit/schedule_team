@@ -61,8 +61,30 @@ const deleteAsignacion = async (req, res) => {
     }
 };
 
+const updateAsignacion = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { rol_trabajo_id } = req.body;
+
+        if (!rol_trabajo_id) {
+            return res.status(400).json({ error: "Falta el rol.", frase: obtenerFraseAleatoria() });
+        }
+
+        const asignacionActualizada = await asignacionService.updateAsignacion(id, rol_trabajo_id);
+
+        if (!asignacionActualizada) {
+            return res.status(404).json({ error: "Asignación no encontrada.", frase: obtenerFraseAleatoria() });
+        }
+        res.json(asignacionActualizada);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: obtenerFraseAleatoria() });
+    }
+};
+
 module.exports = {
     getAsignaciones,
     createAsignacion,
-    deleteAsignacion
+    deleteAsignacion,
+    updateAsignacion
 };

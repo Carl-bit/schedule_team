@@ -49,14 +49,20 @@ const createEmpleado = async (nombre, correo, password, alias, telefono, puesto_
 };
 
 // 4. ACTUALIZAR EMPLEADO 🆕
-const updateEmpleado = async (id, nombre, alias, telefono) => {
+const updateEmpleado = async (id, data) => {
+  const { nombre_empleado, alias_empleado, telefono_empleado, correo_empleado, puesto_empleado_id } = data;
+
   const query = `
         UPDATE empleados
-        SET nombre_empleado = $1, alias_empleado = $2, telefono_empleado = $3
-        WHERE empleado_id = $4
-        RETURNING empleado_id, nombre_empleado, alias_empleado, telefono_empleado`;
+        SET nombre_empleado = COALESCE($1, nombre_empleado),
+            alias_empleado = COALESCE($2, alias_empleado),
+            telefono_empleado = COALESCE($3, telefono_empleado),
+            correo_empleado = COALESCE($4, correo_empleado),
+            puesto_empleado_id = COALESCE($5, puesto_empleado_id)
+        WHERE empleado_id = $6
+        RETURNING empleado_id, nombre_empleado, alias_empleado, telefono_empleado, correo_empleado, puesto_empleado_id`;
 
-  const values = [nombre, alias, telefono, id];
+  const values = [nombre_empleado, alias_empleado, telefono_empleado, correo_empleado, puesto_empleado_id, id];
   const result = await pool.query(query, values);
   return result.rows[0];
 };
@@ -90,7 +96,7 @@ const deleteEmpleado = async (id) => {
 
 const verifyCredentials = async (email, password) => {
   // A. Buscamos por EMAIL, no por ID
-  const query = 'SELECT e.empleado_id, e.nombre_empleado, e.alias_empleado, e.telefono_empleado, e.password_hash, e.correo_empleado, c.puesto_empleado FROM empleados e LEFT JOIN catalogo_empleado c ON e.puesto_empleado_id = c.puesto_empleado_id WHERE e.correo_empleado = $1;';
+  const query = 'SELECT e.empleado_id, e.nombre_empleado, e.alias_empleado, e.telefono_empleado, e.password_hash, e.correo_empleado, e.puesto_empleado_id, c.puesto_empleado FROM empleados e LEFT JOIN catalogo_empleado c ON e.puesto_empleado_id = c.puesto_empleado_id WHERE e.correo_empleado = $1;';
   const result = await pool.query(query, [email]);
 
   const user = result.rows[0];

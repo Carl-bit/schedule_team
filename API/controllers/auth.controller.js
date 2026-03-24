@@ -23,7 +23,7 @@ const loginEmpleado = async (req, res) => {
 
         // 3. Guardamos la Cookie
         // Usamos la variable roleValue que acabamos de calcular
-        res.setHeader('Set-Cookie', `user_role=${roleValue}; Path=/; Max-Age=86400; HttpOnly; Secure`);
+        res.setHeader('Set-Cookie', `user_role=${roleValue}; Path=/; Max-Age=86400; HttpOnly; SameSite=Lax`);
 
         // 4. Respondemos al Frontend
         res.json({
@@ -41,7 +41,7 @@ const loginEmpleado = async (req, res) => {
 
 const logout = (req, res) => {
     // Sobrescribimos la cookie con tiempo de vida 0 (muerte instantánea)
-    res.setHeader('Set-Cookie', 'user_role=; Path=/; Max-Age=0; HttpOnly; Secure');
+    res.setHeader('Set-Cookie', 'user_role=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax');
 
     res.json({ mensaje: "Sesión cerrada exitosamente" });
 };

@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Users, Clock, CheckCircle2, AlertCircle, XCircle, Briefcase, CalendarClock, Loader2, CalendarOff, ShieldCheck } from 'lucide-react';
+import { Users, Clock, CheckCircle2, AlertCircle, XCircle, Briefcase, CalendarClock, Loader2, CalendarOff, ShieldCheck, ClipboardList, MessageSquare, Check, X } from 'lucide-react';
 
 const API_BASE = 'http://localhost:3000/api';
 
@@ -47,20 +47,40 @@ interface Ausencia {
     estado_id: number;
 }
 
-type TabActivo = 'equipos' | 'horas' | 'ausencias';
+interface SolicitudCobertura {
+    solicitud_id: string;
+    empleado_id: string;
+    nombre_asignado: string;
+    creado_por: string;
+    nombre_lider: string;
+    motivo: string;
+    descripcion: string | null;
+    fecha_inicio: string;
+    fecha_fin: string;
+    estado: string;
+    motivo_rechazo: string | null;
+    created_at: string;
+}
+
+type TabActivo = 'coberturas' | 'equipos' | 'horas' | 'ausencias';
 type FiltroHoras = 'todos' | 'pendientes' | 'aprobadas' | 'mis_solicitudes' | 'del_lider';
 type FiltroAusencias = 'todas' | 'pendientes' | 'aprobadas' | 'registros';
 
 export default function SolicitudesPanel() {
-    const [tabActivo, setTabActivo] = useState<TabActivo>('equipos');
+    const [tabActivo, setTabActivo] = useState<TabActivo>('coberturas');
     const [proyectos, setProyectos] = useState<ProyectoSolicitud[]>([]);
     const [solicitudesHoras, setSolicitudesHoras] = useState<SolicitudHora[]>([]);
     const [ausencias, setAusencias] = useState<Ausencia[]>([]);
+    const [coberturas, setCoberturas] = useState<SolicitudCobertura[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const [filtroHoras, setFiltroHoras] = useState<FiltroHoras>('todos');
     const [filtroAusencias, setFiltroAusencias] = useState<FiltroAusencias>('todas');
     const [actualizandoId, setActualizandoId] = useState<string | null>(null);
+
+    // Modal rechazo
+    const [rechazarSolicitud, setRechazarSolicitud] = useState<SolicitudCobertura | null>(null);
+    const [motivoRechazoText, setMotivoRechazoText] = useState('');
 
     const getUserId = (): string | null => {
         const storedData = localStorage.getItem('user_data');
@@ -82,11 +102,12 @@ export default function SolicitudesPanel() {
 
                 const timestamp = Date.now();
 
-                const [asignacionesRes, planRes, horasRes, ausenciasRes] = await Promise.all([
+                const [asignacionesRes, planRes, horasRes, ausenciasRes, coberturasRes] = await Promise.all([
                     fetch(`${API_BASE}/asignaciones`),
                     fetch(`${API_BASE}/planificacion/${userId}?t=${timestamp}`),
                     fetch(`${API_BASE}/hora/${userId}?t=${timestamp}`),
-                    fetch(`${API_BASE}/ausencias/${userId}?t=${timestamp}`)
+                    fetch(`${API_BASE}/ausencias/${userId}?t=${timestamp}`),
+                    fetch(`${API_BASE}/solicitudes/empleado/${userId}?t=${timestamp}`)
                 ]);
 
                 // --- Procesar Asignaciones (Equipos) ---
@@ -179,6 +200,14 @@ export default function SolicitudesPanel() {
                         setAusencias(ausData);
                     }
                 }
+
+                // --- Procesar Coberturas ---
+                if (coberturasRes.ok) {
+                    const cobData = await coberturasRes.json();
+                    if (Array.isArray(cobData)) {
+                        setCoberturas(cobData);
+                    }
+                }
             } catch (err: any) {
                 console.error(err);
                 setError(err.message || 'Error al cargar solicitudes.');
@@ -212,6 +241,43 @@ export default function SolicitudesPanel() {
     const pendientesHoras = solicitudesHoras.filter(s => s.estado_id === 1).length;
     const pendientesEquipo = proyectos.length;
     const pendientesAusencias = ausencias.filter(a => a.requiere_aprobacion && a.estado_id === 1).length;
+    const pendientesCoberturas = coberturas.filter(c => c.estado === 'pendiente').length;
+
+    // --- Acciones Coberturas ---
+    const aceptarCobertura = async (solicitudId: string) => {
+        try {
+            setActualizandoId(solicitudId);
+            await fetch(`${API_BASE}/solicitudes/${solicitudId}/estado`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ estado: 'aceptada' })
+            });
+            setCoberturas(prev => prev.map(c => c.solicitud_id === solicitudId ? { ...c, estado: 'aceptada' } : c));
+        } catch (err) {
+            console.error('Error aceptando cobertura:', err);
+        } finally {
+            setActualizandoId(null);
+        }
+    };
+
+    const rechazarCobertura = async () => {
+        if (!rechazarSolicitud) return;
+        try {
+            setActualizandoId(rechazarSolicitud.solicitud_id);
+            await fetch(`${API_BASE}/solicitudes/${rechazarSolicitud.solicitud_id}/estado`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ estado: 'rechazada', motivo_rechazo: motivoRechazoText || null })
+            });
+            setCoberturas(prev => prev.map(c => c.solicitud_id === rechazarSolicitud.solicitud_id ? { ...c, estado: 'rechazada', motivo_rechazo: motivoRechazoText } : c));
+            setRechazarSolicitud(null);
+            setMotivoRechazoText('');
+        } catch (err) {
+            console.error('Error rechazando cobertura:', err);
+        } finally {
+            setActualizandoId(null);
+        }
+    };
 
     // --- Acciones ---
     const actualizarEstadoPlan = async (planId: string, nuevoEstado: number) => {
@@ -286,6 +352,7 @@ export default function SolicitudesPanel() {
             {/* Tabs */}
             <div className="flex gap-1 bg-[#1a1c24] p-1 rounded-xl border border-gray-800/50 shrink-0">
                 {[
+                    { key: 'coberturas' as TabActivo, label: 'Coberturas', icon: <ClipboardList className="w-4 h-4" />, count: pendientesCoberturas, color: 'bg-violet-500/20 text-violet-400' },
                     { key: 'equipos' as TabActivo, label: 'Equipos', icon: <Users className="w-4 h-4" />, count: pendientesEquipo, color: 'bg-indigo-500/20 text-indigo-400' },
                     { key: 'horas' as TabActivo, label: 'Horas', icon: <Clock className="w-4 h-4" />, count: pendientesHoras, color: 'bg-amber-500/20 text-amber-400' },
                     { key: 'ausencias' as TabActivo, label: 'Ausencias', icon: <CalendarOff className="w-4 h-4" />, count: pendientesAusencias, color: 'bg-rose-500/20 text-rose-400' },
@@ -314,6 +381,80 @@ export default function SolicitudesPanel() {
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
+                {/* ============ TAB COBERTURAS ============ */}
+                {tabActivo === 'coberturas' && (
+                    <div className="flex flex-col gap-3">
+                        {coberturas.length > 0 ? (
+                            coberturas.map((cob) => {
+                                const isPending = cob.estado === 'pendiente';
+                                const isAccepted = cob.estado === 'aceptada';
+                                const isRejected = cob.estado === 'rechazada';
+                                const dias = Math.max(1, Math.ceil((new Date(cob.fecha_fin).getTime() - new Date(cob.fecha_inicio).getTime()) / 86400000) + 1);
+
+                                return (
+                                    <div key={cob.solicitud_id}
+                                        className={`relative bg-[#1e2336]/80 backdrop-blur-md border p-4 rounded-2xl transition-all group overflow-hidden
+                                            ${isPending ? 'border-violet-500/30 hover:border-violet-500/50' : isAccepted ? 'border-[#3b4256]/50 hover:border-[#4f5872]' : 'border-red-500/30 hover:border-red-500/50'}`}>
+                                        <span className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl
+                                            ${isPending ? 'bg-violet-500' : isAccepted ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+                                        <div className="flex items-center gap-4 pl-2">
+                                            <div className={`p-2.5 rounded-xl shrink-0 ${isPending ? 'bg-violet-500/10 text-violet-400' : isAccepted ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                                                <ClipboardList className="w-5 h-5" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <h4 className="font-bold text-sm text-white">{cob.motivo}</h4>
+                                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">COBERTURA</span>
+                                                </div>
+                                                <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-400">
+                                                    <span>Solicitado por <strong className="text-indigo-300">{cob.nombre_lider}</strong></span>
+                                                    <span>{formatearFechaCorta(cob.fecha_inicio)} — {formatearFechaCorta(cob.fecha_fin)}</span>
+                                                    <span className="text-indigo-300 font-medium">{dias} día{dias > 1 ? 's' : ''}</span>
+                                                </div>
+                                                {cob.descripcion && <p className="text-[10px] text-gray-500 mt-0.5">{cob.descripcion}</p>}
+                                                {isRejected && cob.motivo_rechazo && (
+                                                    <p className="text-[10px] text-red-400/70 mt-1 flex items-center gap-1">
+                                                        <MessageSquare className="w-2.5 h-2.5" /> Tu motivo: "{cob.motivo_rechazo}"
+                                                    </p>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                {isPending ? (
+                                                    <>
+                                                        <button onClick={() => aceptarCobertura(cob.solicitud_id)} disabled={actualizandoId === cob.solicitud_id}
+                                                            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer disabled:opacity-50">
+                                                            {actualizandoId === cob.solicitud_id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                                                            Aceptar
+                                                        </button>
+                                                        <button onClick={() => { setRechazarSolicitud(cob); setMotivoRechazoText(''); }} disabled={actualizandoId === cob.solicitud_id}
+                                                            className="flex items-center gap-1.5 bg-red-600/80 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer disabled:opacity-50">
+                                                            <X className="w-3 h-3" /> Rechazar
+                                                        </button>
+                                                    </>
+                                                ) : isAccepted ? (
+                                                    <div className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-2.5 py-1.5 rounded-full text-[10px] font-bold border border-emerald-500/20">
+                                                        <CheckCircle2 className="w-3 h-3" /> Aceptada
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-1.5 bg-red-500/10 text-red-400 px-2.5 py-1.5 rounded-full text-[10px] font-bold border border-red-500/20">
+                                                        <XCircle className="w-3 h-3" /> Rechazada
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-16 text-center bg-white/5 rounded-2xl border border-white/10 border-dashed">
+                                <ClipboardList className="w-12 h-12 text-gray-600 mb-3" />
+                                <p className="text-gray-400 text-lg">No tienes solicitudes de cobertura.</p>
+                                <p className="text-gray-500 text-sm mt-1">Aquí aparecerán las peticiones de tu líder para cubrir posiciones.</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {tabActivo === 'equipos' && (
                     /* ============ TAB EQUIPOS ============ */
                     <div className="flex flex-col gap-3">
@@ -617,6 +758,36 @@ export default function SolicitudesPanel() {
                     </div>
                 )}
             </div>
+
+            {/* Modal de Rechazo de Cobertura */}
+            {rechazarSolicitud && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setRechazarSolicitud(null)}>
+                    <div className="bg-[#1e2336] rounded-2xl border border-[#3b4256] p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-1">
+                            <MessageSquare className="w-5 h-5 text-red-400" />
+                            Rechazar Solicitud
+                        </h3>
+                        <p className="text-xs text-gray-400 mb-4">
+                            Vas a rechazar la solicitud &quot;{rechazarSolicitud.motivo}&quot; de {rechazarSolicitud.nombre_lider}.
+                            Indica el motivo para que pueda reasignarla a otra persona.
+                        </p>
+                        <label className="block text-xs text-gray-400 uppercase tracking-wider font-bold mb-1">Motivo del rechazo</label>
+                        <textarea value={motivoRechazoText} onChange={e => setMotivoRechazoText(e.target.value)}
+                            placeholder="Ej: No puedo cubrir esas fechas por compromisos previos..."
+                            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-500 transition-colors resize-none h-20 mb-4" />
+                        <div className="flex gap-2">
+                            <button onClick={() => setRechazarSolicitud(null)} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-600 text-gray-400 hover:text-white hover:border-gray-500 transition-colors text-sm cursor-pointer">
+                                Cancelar
+                            </button>
+                            <button onClick={rechazarCobertura} disabled={actualizandoId === rechazarSolicitud.solicitud_id}
+                                className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer disabled:opacity-50">
+                                {actualizandoId === rechazarSolicitud.solicitud_id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                                Confirmar Rechazo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
