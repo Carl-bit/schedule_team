@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import ContentProfile from '../Trabajador/ContentProfile';
 
-const API_BASE = 'http://localhost:3000/api';
+import { API_BASE } from '@/app/lib/api';
 
 interface MenuItemProps {
     icon: string;

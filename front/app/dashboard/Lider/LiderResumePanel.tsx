@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Users, Briefcase, AlertCircle, CheckCircle2, Loader2, Clock } from 'lucide-react';
 
-const API_BASE = 'http://localhost:3000/api';
+import { API_BASE } from '@/app/lib/api';
 
 export default function LiderResumePanel() {
     const [nombreUsuario, setNombreUsuario] = useState('');

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Briefcase, Plus, Edit3, Trash2, Users, Search, Loader2, X, ChevronDown, ChevronUp, UserPlus, UserMinus, RefreshCw } from 'lucide-react';
 
-const API_BASE = 'http://localhost:3000/api';
+import { API_BASE } from '@/app/lib/api';
 
 interface Proyecto {
     proyecto_id: string;

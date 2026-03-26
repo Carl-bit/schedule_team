@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { API_BASE } from '@/app/lib/api';
 
 export default function Header() {
     const router = useRouter();
@@ -8,7 +9,7 @@ export default function Header() {
     const handleLogout = async () => {
         try {
             // 1. Avisar a la API para matar la cookie
-            await fetch('http://localhost:3000/api/auth/logout', {
+            await fetch(`${API_BASE}/auth/logout`, {
                 method: 'POST',
                 credentials: 'include',
             });

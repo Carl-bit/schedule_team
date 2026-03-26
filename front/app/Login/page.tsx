@@ -3,6 +3,7 @@
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Square from '../components/Backgrounds/Square';
+import { API_BASE } from '@/app/lib/api';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -20,7 +21,7 @@ export default function LoginPage() {
 
         try {
             // 1. Llamamos a TU API (La que probaste en Insomnia)
-            const response = await fetch('http://localhost:3000/api/auth/login', {
+            const response = await fetch(`${API_BASE}/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

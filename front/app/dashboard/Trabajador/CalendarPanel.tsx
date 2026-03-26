@@ -41,7 +41,7 @@ const getEstadoInfo = (estadoId: EstadoId) => {
   }
 };
 
-const API_BASE = 'http://localhost:3000/api';
+import { API_BASE } from '@/app/lib/api';
 
 // Datos iniciales eliminados, ahora vienen de la BD
 export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_id?: string }) {

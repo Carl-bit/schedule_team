@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
 
-const API_BASE = 'http://localhost:3000/api';
+import { API_BASE } from '@/app/lib/api';
 
 interface Empleado {
     empleado_id: string;

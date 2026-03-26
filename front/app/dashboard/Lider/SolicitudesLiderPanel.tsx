@@ -2,7 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ClipboardList, Clock, CalendarPlus, History, Check, X, Loader2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Filter, RefreshCw, MessageSquare, UserPlus, Briefcase, CalendarOff, AlertCircle, CheckCircle2 } from 'lucide-react';
 
-const API_BASE = 'http://localhost:3000/api';
+import { API_BASE } from '@/app/lib/api';
 
 type TabType = 'revision' | 'coberturas' | 'crear' | 'historial';
 type SubFilter = 'todos' | 'planificacion' | 'horas' | 'ausencias';

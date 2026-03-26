@@ -1,0 +1,72 @@
+services:
+  # --- Base de datos PostgreSQL ---
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: schedule_user
+      POSTGRES_PASSWORD: 258963
+      POSTGRES_DB: schedule_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./BACK/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./BACK/seeds.sql:/docker-entrypoint-initdb.d/02-seeds.sql
+      - ./BACK/trigger.sql:/docker-entrypoint-initdb.d/03-trigger.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U schedule_user -d schedule_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --- pgAdmin (Dashboard de la base de datos) ---
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@schedule.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+  # --- API Backend (Node.js + Express) ---
+  api:
+    build:
+      context: ./API
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DB_USER: schedule_user
+      DB_PASSWORD: 258963
+      DB_NAME: schedule_db
+      DB_HOST: db
+      DB_PORT: 5432
+      CORS_ORIGIN: http://localhost:3018
+    ports:
+      - "3019:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # --- Frontend (Next.js) ---
+  frontend:
+    build:
+      context: ./front
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3019/api
+    restart: unless-stopped
+    ports:
+      - "3018:3001"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  pgadmin_data:

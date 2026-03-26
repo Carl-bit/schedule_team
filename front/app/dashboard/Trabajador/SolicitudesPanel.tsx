@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Users, Clock, CheckCircle2, AlertCircle, XCircle, Briefcase, CalendarClock, Loader2, CalendarOff, ShieldCheck, ClipboardList, MessageSquare, Check, X } from 'lucide-react';
 
-const API_BASE = 'http://localhost:3000/api';
+import { API_BASE } from '@/app/lib/api';
 
 // --- Interfaces ---
 interface AsignacionApi {

@@ -21,8 +21,8 @@ const solicitudRoutes = require('./routes/solicitud.route');
 app.use(express.json()); // Middleware para entender JSON (importante para el futuro)
 
 app.use(cors({
-    origin: 'http://localhost:3001', // <--- IMPORTANTE: Debe coincidir EXACTO con la URL de tu navegador
-    credentials: true,               // <--- Permite pasar el "Pasaporte" (Cookies)
+    origin: process.env.CORS_ORIGIN || 'http://localhost:3001',
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']
 }));
 

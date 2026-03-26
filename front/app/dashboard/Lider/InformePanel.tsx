@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { FileBarChart, Calendar, Users, Clock, CalendarOff, Briefcase, ChevronLeft, ChevronRight, Loader2, Download } from 'lucide-react';
 import jsPDF from 'jspdf';
 
-const API_BASE = 'http://localhost:3000/api';
+import { API_BASE } from '@/app/lib/api';
 
 interface Empleado {
     empleado_id: string;

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { div } from 'framer-motion/client';
 import { useRouter } from 'next/navigation';
+import { API_BASE } from '@/app/lib/api';
 
 interface ModalModificarProps {
     user: {
@@ -76,7 +77,7 @@ export default function ModalModificar({ user, onClose, onActualizar }: ModalMod
     const handleLogout = async () => {
         try {
             // 1. Avisar a la API para matar la cookie
-            await fetch('http://localhost:3000/api/auth/logout', {
+            await fetch(`${API_BASE}/auth/logout`, {
                 method: 'POST',
                 credentials: 'include',
             });
@@ -98,7 +99,7 @@ export default function ModalModificar({ user, onClose, onActualizar }: ModalMod
             setIsLoading(true);
             setMensaje('');
             // 1. Preparamos la llamada al servidor
-            const response = await fetch(`http://localhost:3000/api/empleados/${formData.id}`, { // 👈 Ajusta tu URL
+            const response = await fetch(`${API_BASE}/empleados/${formData.id}`, { // 👈 Ajusta tu URL
                 method: 'PUT', // o 'PATCH' dependiendo de tu backend
                 headers: {
                     'Content-Type': 'application/json',
@@ -147,7 +148,7 @@ export default function ModalModificar({ user, onClose, onActualizar }: ModalMod
             setMensaje('');
 
             // 1. Petición corregida (Solo ID en URL, y el newPassword en el body)
-            const response = await fetch(`http://localhost:3000/api/empleados/${user.empleado_id}/password`, {
+            const response = await fetch(`${API_BASE}/empleados/${user.empleado_id}/password`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',

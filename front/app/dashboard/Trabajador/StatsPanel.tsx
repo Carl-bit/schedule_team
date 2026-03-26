@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Clock, Calendar, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import StatsDateRangePicker from './StatsDateRangePicker';
 
-const API_BASE = 'http://localhost:3000/api';
+import { API_BASE } from '@/app/lib/api';
 
 // Reusing interfaces from CalendarPanel for typings
 type ShiftType = 'work' | 'replacement' | 'vacation' | 'unavailable' | 'pattern';

@@ -1,0 +1,16 @@
+node_modules
+.git
+.gitignore
+*.md
+.env
+.env.*
+.agents
+Documentos
+skills-lock.json
+
+# Frontend build artifacts
+front/.next
+front/node_modules
+
+# API
+API/node_modules

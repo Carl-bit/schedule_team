@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Settings, Briefcase, Shield, AlertTriangle, Plus, Pencil, Trash2, X, Check, Loader2 } from 'lucide-react';
 
-const API_BASE = 'http://localhost:3000/api';
+import { API_BASE } from '@/app/lib/api';
 
 type TabType = 'puestos' | 'roles' | 'estados' | 'ausencias';
 

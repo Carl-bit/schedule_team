@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import ModalEquipoProyecto from './ModalEquipoProyecto';
+import { API_BASE } from '@/app/lib/api';
 
 // Interfaz para la respuesta cruda de la API
 interface AsignacionApi {
@@ -51,7 +52,7 @@ export default function EquiposPanel() {
                 const currentUserId = userData.empleado_id;
 
                 // 2. Traer todas las asignaciones
-                const response = await fetch('http://localhost:3000/api/asignaciones');
+                const response = await fetch(`${API_BASE}/asignaciones`);
                 if (!response.ok) throw new Error('Error al cargar los equipos');
                 const data: AsignacionApi[] = await response.json();
 

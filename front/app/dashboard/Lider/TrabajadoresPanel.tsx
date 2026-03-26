@@ -4,7 +4,7 @@ import { Users, Search, Plus, Edit3, Trash2, Loader2 } from 'lucide-react';
 import ModalNuevoTrabajador from './ModalNuevoTrabajador';
 import ModalEditarTrabajador from './ModalEditarTrabajador';
 
-const API_BASE = 'http://localhost:3000/api';
+import { API_BASE } from '@/app/lib/api';
 
 interface Empleado {
     empleado_id: string;

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Clock, CalendarClock, Users, AlertCircle, CheckCircle2, Briefcase, Loader2, CalendarOff, XCircle } from 'lucide-react';
 
-const API_BASE = 'http://localhost:3000/api';
+import { API_BASE } from '@/app/lib/api';
 
 interface ProximoTurno {
     id: string;
