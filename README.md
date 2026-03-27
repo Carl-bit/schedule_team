@@ -90,5 +90,4 @@ docker compose up --build
 | **Empleados**| `/api/empleados` | Gestión de staff. |
 | **Horas** | `/api/hora` | Registros de jornada. |
 | **Turnos** | `/api/planificacion`| Calendario maestro. |
-```
 
