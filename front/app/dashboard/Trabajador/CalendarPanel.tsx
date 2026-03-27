@@ -472,13 +472,13 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
     try {
       // Separar asignaciones: work/replacement → planificacion, vacation/unavailable → ausencias
       const planAssignments = assignments.filter(a => {
-        if (a.source === 'registro' || a.source === 'ausencia') return false;
+        if (a.source !== 'plan') return false;
         const l = labels.find(lb => lb.id === a.labelId);
         return l && !isAbsenceType(l.type);
       });
 
       const ausenciaAssignments = assignments.filter(a => {
-        if (a.source === 'registro') return false;
+        if (a.source !== 'plan') return false;
         const l = labels.find(lb => lb.id === a.labelId);
         return l && isAbsenceType(l.type);
       });

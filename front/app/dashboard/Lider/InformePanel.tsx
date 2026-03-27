@@ -13,7 +13,10 @@ interface Empleado {
 }
 
 interface InformeData {
+    horasPlanificadas: number;
     horasTrabajadas: number;
+    horasPendientes: number;
+    totalPlanificaciones: number;
     totalRegistros: number;
     ausencias: number;
     ausenciasPendientes: number;
@@ -37,11 +40,12 @@ export default function InformePanel() {
 
     const [showHoras, setShowHoras] = useState(true);
     const [showAusencias, setShowAusencias] = useState(true);
-    const [showComparacion, setShowComparacion] = useState(false);
+    const [showComparacion, setShowComparacion] = useState(true);
     const [showEquipos, setShowEquipos] = useState(true);
 
     const [informeData, setInformeData] = useState<InformeData | null>(null);
     const [comparacionData, setComparacionData] = useState<InformeData | null>(null);
+    const [prevPeriodLabel, setPrevPeriodLabel] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
     const [calendarMonth, setCalendarMonth] = useState(() => new Date().getMonth());
@@ -62,10 +66,24 @@ export default function InformePanel() {
         fetchEmpleados();
     }, []);
 
+    // Helper: extrae YYYY-MM-DD de un timestamp sin depender de timezone
+    const toLocalDateStr = (d: Date) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    };
+
+    // Helper: parsea "YYYY-MM-DD" como fecha LOCAL (no UTC)
+    const parseLocalDate = (str: string) => {
+        const [y, m, d] = str.split('-').map(Number);
+        return new Date(y, m - 1, d);
+    };
+
     const diasSeleccionados = useMemo(() => {
         if (!filterStartDate || !filterEndDate) return 0;
-        const start = new Date(filterStartDate);
-        const end = new Date(filterEndDate);
+        const start = parseLocalDate(filterStartDate);
+        const end = parseLocalDate(filterEndDate);
         const diff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
         return Math.max(0, diff);
     }, [filterStartDate, filterEndDate]);
@@ -77,51 +95,85 @@ export default function InformePanel() {
             return;
         }
 
+        // Helper: calcula horas de planificacion y registro para un rango dado
+        const calcularHorasEnRango = (
+            planData: any[], horasData: any[], ausData: any[],
+            rangoStart: string, rangoEnd: string, empleadoId: string
+        ) => {
+            let horasPlanificadas = 0;
+            let totalPlanificaciones = 0;
+            let horasPendientes = 0;
+
+            if (Array.isArray(planData)) {
+                planData.forEach((item: any) => {
+                    const inicio = new Date(item.inicio_turno);
+                    const dateStr = toLocalDateStr(inicio);
+                    if (dateStr >= rangoStart && dateStr <= rangoEnd) {
+                        if (item.fin_turno) {
+                            const fin = new Date(item.fin_turno);
+                            const h = (fin.getTime() - inicio.getTime()) / (1000 * 3600);
+                            if (h > 0) {
+                                if (item.estado_id === 2) {
+                                    horasPlanificadas += h;
+                                } else if (item.estado_id === 1) {
+                                    horasPendientes += h;
+                                }
+                                totalPlanificaciones++;
+                            }
+                        }
+                    }
+                });
+            }
+
+            let horasTrabajadas = 0;
+            let totalRegistros = 0;
+            if (Array.isArray(horasData)) {
+                horasData.forEach((h: any) => {
+                    const inicio = new Date(h.inicio_trabajo);
+                    const dateStr = toLocalDateStr(inicio);
+                    if (dateStr >= rangoStart && dateStr <= rangoEnd) {
+                        totalRegistros++;
+                        if (h.fin_trabajo) {
+                            const fin = new Date(h.fin_trabajo);
+                            horasTrabajadas += (fin.getTime() - inicio.getTime()) / (1000 * 3600);
+                        }
+                    }
+                });
+            }
+
+            let ausencias = 0;
+            let ausenciasPendientes = 0;
+            if (Array.isArray(ausData)) {
+                ausData.forEach((a: any) => {
+                    const inicio = new Date(a.inicio_ausencia);
+                    const dateStr = toLocalDateStr(inicio);
+                    if (dateStr >= rangoStart && dateStr <= rangoEnd) {
+                        ausencias++;
+                        if (a.estado_id === 1) ausenciasPendientes++;
+                    }
+                });
+            }
+
+            return { horasPlanificadas, horasTrabajadas, horasPendientes, totalPlanificaciones, totalRegistros, ausencias, ausenciasPendientes };
+        };
+
         const fetchInforme = async () => {
             setIsLoading(true);
             try {
                 const timestamp = Date.now();
-                const [horasRes, ausenciasRes, asignacionesRes] = await Promise.all([
+                const [planRes, horasRes, ausenciasRes, asignacionesRes] = await Promise.all([
+                    fetch(`${API_BASE}/planificacion/${selectedEmpleado}?t=${timestamp}`),
                     fetch(`${API_BASE}/hora/${selectedEmpleado}?t=${timestamp}`),
                     fetch(`${API_BASE}/ausencias/${selectedEmpleado}?t=${timestamp}`),
                     fetch(`${API_BASE}/asignaciones`)
                 ]);
 
-                // Parse responses ONCE and store in variables
+                const planData = planRes.ok ? await planRes.json() : [];
                 const horasData = horasRes.ok ? await horasRes.json() : [];
                 const ausData = ausenciasRes.ok ? await ausenciasRes.json() : [];
                 const asignacionesData = asignacionesRes.ok ? await asignacionesRes.json() : [];
 
-                // Current period
-                let horasTrabajadas = 0;
-                let totalRegistros = 0;
-                if (Array.isArray(horasData)) {
-                    horasData.forEach((h: any) => {
-                        const inicio = new Date(h.inicio_trabajo);
-                        const dateStr = inicio.toISOString().split('T')[0];
-                        if (dateStr >= filterStartDate && dateStr <= filterEndDate) {
-                            totalRegistros++;
-                            if (h.fin_trabajo) {
-                                const fin = new Date(h.fin_trabajo);
-                                horasTrabajadas += (fin.getTime() - inicio.getTime()) / (1000 * 3600);
-                            }
-                        }
-                    });
-                }
-
-                let ausencias = 0;
-                let ausenciasPendientes = 0;
-                if (Array.isArray(ausData)) {
-                    ausData.forEach((a: any) => {
-                        const inicio = new Date(a.inicio_ausencia);
-                        const dateStr = inicio.toISOString().split('T')[0];
-                        if (dateStr >= filterStartDate && dateStr <= filterEndDate) {
-                            ausencias++;
-                            if (a.estado_id === 1) ausenciasPendientes++;
-                        }
-                    });
-                }
-
+                // Equipos (no depende del rango)
                 let equipos = 0;
                 if (Array.isArray(asignacionesData)) {
                     const proyectos = new Set<string>();
@@ -133,54 +185,31 @@ export default function InformePanel() {
                     equipos = proyectos.size;
                 }
 
-                setInformeData({ horasTrabajadas, totalRegistros, ausencias, ausenciasPendientes, equipos });
+                // Current period
+                const current = calcularHorasEnRango(planData, horasData, ausData, filterStartDate, filterEndDate, selectedEmpleado);
+                setInformeData({ ...current, equipos });
 
-                // Comparison with previous period (reuse parsed data)
+                // Comparison with previous period (shifted by calendar months)
                 if (showComparacion) {
-                    const startDate = new Date(filterStartDate);
-                    const endDate = new Date(filterEndDate);
-                    const diffMs = endDate.getTime() - startDate.getTime();
-                    const prevEnd = new Date(startDate.getTime() - 86400000); // 1 day before start
-                    const prevStart = new Date(prevEnd.getTime() - diffMs);
-                    const prevStartStr = prevStart.toISOString().split('T')[0];
-                    const prevEndStr = prevEnd.toISOString().split('T')[0];
+                    const startDate = parseLocalDate(filterStartDate);
+                    const endDate = parseLocalDate(filterEndDate);
 
-                    let prevHoras = 0;
-                    let prevRegistros = 0;
-                    if (Array.isArray(horasData)) {
-                        horasData.forEach((h: any) => {
-                            const inicio = new Date(h.inicio_trabajo);
-                            const dateStr = inicio.toISOString().split('T')[0];
-                            if (dateStr >= prevStartStr && dateStr <= prevEndStr) {
-                                prevRegistros++;
-                                if (h.fin_trabajo) {
-                                    const fin = new Date(h.fin_trabajo);
-                                    prevHoras += (fin.getTime() - inicio.getTime()) / (1000 * 3600);
-                                }
-                            }
-                        });
-                    }
+                    const monthsSpan =
+                        (endDate.getFullYear() - startDate.getFullYear()) * 12
+                        + (endDate.getMonth() - startDate.getMonth()) + 1;
 
-                    let prevAusencias = 0;
-                    if (Array.isArray(ausData)) {
-                        ausData.forEach((a: any) => {
-                            const inicio = new Date(a.inicio_ausencia);
-                            const dateStr = inicio.toISOString().split('T')[0];
-                            if (dateStr >= prevStartStr && dateStr <= prevEndStr) {
-                                prevAusencias++;
-                            }
-                        });
-                    }
+                    const prevStart = new Date(startDate.getFullYear(), startDate.getMonth() - monthsSpan, startDate.getDate());
+                    const prevEnd = new Date(endDate.getFullYear(), endDate.getMonth() - monthsSpan, endDate.getDate());
 
-                    setComparacionData({
-                        horasTrabajadas: prevHoras,
-                        totalRegistros: prevRegistros,
-                        ausencias: prevAusencias,
-                        ausenciasPendientes: 0,
-                        equipos
-                    });
+                    const prevStartStr = toLocalDateStr(prevStart);
+                    const prevEndStr = toLocalDateStr(prevEnd);
+
+                    const prev = calcularHorasEnRango(planData, horasData, ausData, prevStartStr, prevEndStr, selectedEmpleado);
+                    setPrevPeriodLabel(`${formatDateDMY(prevStartStr)} — ${formatDateDMY(prevEndStr)}`);
+                    setComparacionData({ ...prev, equipos });
                 } else {
                     setComparacionData(null);
+                    setPrevPeriodLabel('');
                 }
             } catch (err) {
                 console.error('Error cargando informe:', err);
@@ -282,10 +311,10 @@ export default function InformePanel() {
         doc.setFontSize(9);
         doc.setTextColor(80);
         const filters = [];
-        if (showHoras) filters.push('horas trabajadas');
+        if (showHoras) filters.push('horas planificadas y trabajadas');
         if (showAusencias) filters.push('ausencias');
         if (showEquipos) filters.push('equipos asignados');
-        doc.text(`Se contabilizan las horas trabajadas de ${empName} considerando: ${filters.join(', ')}.`, 25, y + 8);
+        doc.text(`Se contabilizan las horas de ${empName} considerando: ${filters.join(', ')}.`, 25, y + 8);
         doc.text(`Correspondientes al período ${formatDateDMY(filterStartDate)} al ${formatDateDMY(filterEndDate)} (${diasSeleccionados} días).`, 25, y + 14);
         y += 28;
 
@@ -294,7 +323,7 @@ export default function InformePanel() {
             doc.setFontSize(12);
             doc.setTextColor(0);
             doc.setFont('helvetica', 'bold');
-            doc.text('Desglose de Horas Trabajadas', 20, y);
+            doc.text('Desglose de Horas', 20, y);
             y += 8;
 
             // Table header
@@ -310,10 +339,13 @@ export default function InformePanel() {
             // Table rows
             doc.setTextColor(0);
             doc.setFont('helvetica', 'normal');
+            const totalHoras = informeData.horasPlanificadas + informeData.horasTrabajadas;
             const rows = [
-                ['Total de registros', `${informeData.totalRegistros}`],
-                ['Horas trabajadas', `${informeData.horasTrabajadas.toFixed(1)}h`],
-                ['Promedio por registro', informeData.totalRegistros > 0 ? `${(informeData.horasTrabajadas / informeData.totalRegistros).toFixed(1)}h` : '—'],
+                ['Turnos planificados (aprobados)', `${informeData.totalPlanificaciones}`],
+                ['Horas planificadas', `${informeData.horasPlanificadas.toFixed(1)}h`],
+                ['Registros de jornada', `${informeData.totalRegistros}`],
+                ['Horas trabajadas (registro)', `${informeData.horasTrabajadas.toFixed(1)}h`],
+                ['Horas pendientes de revision', `${informeData.horasPendientes.toFixed(1)}h`],
             ];
             rows.forEach(([label, value], i) => {
                 if (i % 2 === 0) { doc.setFillColor(248, 248, 252); doc.rect(20, y, pageW - 40, 7, 'F'); }
@@ -329,8 +361,8 @@ export default function InformePanel() {
             doc.roundedRect(20, y, pageW - 40, 12, 2, 2, 'F');
             doc.setFontSize(11);
             doc.setFont('helvetica', 'bold');
-            doc.text('TOTAL HORAS TRABAJADAS', 25, y + 8);
-            doc.text(`${informeData.horasTrabajadas.toFixed(1)}h`, pageW - 45, y + 8, { align: 'right' });
+            doc.text('TOTAL HORAS (PLANIF. + TRAB.)', 25, y + 8);
+            doc.text(`${totalHoras.toFixed(1)}h`, pageW - 45, y + 8, { align: 'right' });
             y += 20;
         }
 
@@ -375,11 +407,15 @@ export default function InformePanel() {
             doc.setFontSize(10);
             doc.setFont('helvetica', 'normal');
             if (showHoras) {
-                const diff = informeData.horasTrabajadas - comparacionData.horasTrabajadas;
-                const pct = comparacionData.horasTrabajadas > 0 ? ((diff / comparacionData.horasTrabajadas) * 100).toFixed(1) : '—';
-                doc.text(`Horas período anterior: ${comparacionData.horasTrabajadas.toFixed(1)}h (${comparacionData.totalRegistros} reg.)`, 25, y);
+                const prevTotal = comparacionData.horasPlanificadas + comparacionData.horasTrabajadas;
+                const currTotal = informeData.horasPlanificadas + informeData.horasTrabajadas;
+                const diff = currTotal - prevTotal;
+                const pct = prevTotal > 0 ? ((diff / prevTotal) * 100).toFixed(1) : '—';
+                doc.text(`Planificadas anterior: ${comparacionData.horasPlanificadas.toFixed(1)}h (${comparacionData.totalPlanificaciones} turnos)`, 25, y);
                 y += 5;
-                doc.text(`Diferencia: ${diff > 0 ? '+' : ''}${diff.toFixed(1)}h (${pct}%)`, 25, y);
+                doc.text(`Trabajadas anterior: ${comparacionData.horasTrabajadas.toFixed(1)}h (${comparacionData.totalRegistros} reg.)`, 25, y);
+                y += 5;
+                doc.text(`Diferencia total: ${diff > 0 ? '+' : ''}${diff.toFixed(1)}h (${pct}%)`, 25, y);
                 y += 7;
             }
             if (showAusencias) {
@@ -423,16 +459,16 @@ export default function InformePanel() {
         const days = getDaysInMonth(month, year);
         const firstDay = getFirstDayOfMonth(month, year);
         return (
-            <div className="bg-black/20 rounded-xl border border-white/5 p-4">
-                <div className="text-center mb-3">
+            <div className="bg-black/20 rounded-xl border border-white/5 p-5">
+                <div className="text-center mb-4">
                     <span className="text-sm font-bold text-white">{monthNames[month]} {year}</span>
                 </div>
-                <div className="grid grid-cols-7 gap-1">
+                <div className="grid grid-cols-7 gap-1.5">
                     {dayNames.map(d => (
-                        <div key={`${month}-${d}`} className="text-center text-[10px] text-gray-500 font-bold py-1">{d}</div>
+                        <div key={`${month}-${d}`} className="text-center text-[11px] text-gray-500 font-bold py-1.5">{d}</div>
                     ))}
                     {Array.from({ length: firstDay }).map((_, i) => (
-                        <div key={`empty-${month}-${i}`} className="py-2.5"></div>
+                        <div key={`empty-${month}-${i}`} className="py-4"></div>
                     ))}
                     {Array.from({ length: days }).map((_, i) => {
                         const day = i + 1;
@@ -444,7 +480,7 @@ export default function InformePanel() {
                         return (
                             <button key={`${month}-${day}`}
                                 onClick={() => handleDayClick(day, month, year)}
-                                className={`text-center py-2.5 text-xs rounded-lg transition-all cursor-pointer
+                                className={`text-center py-4 text-xs rounded-lg transition-all cursor-pointer
                                     ${isStart || isEnd ? 'bg-indigo-500 text-white font-black shadow-lg shadow-indigo-500/30' : inRange ? 'bg-indigo-600/30 text-indigo-200 font-bold hover:bg-indigo-600/50' : 'text-gray-400 hover:bg-white/10 hover:text-white'}
                                     ${today ? 'ring-1 ring-amber-400' : ''}
                                 `}
@@ -592,25 +628,83 @@ export default function InformePanel() {
                     ) : informeData ? (
                         <div className="flex flex-col gap-2.5">
                             {showHoras && (
-                                <div className="p-3 bg-black/20 rounded-xl border border-white/5">
-                                    <div className="flex items-center gap-1.5 mb-1">
-                                        <Clock className="w-3.5 h-3.5 text-emerald-400" />
-                                        <span className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">Horas</span>
-                                    </div>
-                                    <div className="flex items-end gap-1.5">
-                                        <span className="text-xl font-black text-emerald-400">
-                                            {informeData.horasTrabajadas.toFixed(1).replace(/\.0$/, '')}h
-                                        </span>
-                                        <span className="text-[10px] text-gray-500 mb-0.5">{informeData.totalRegistros} reg.</span>
-                                    </div>
-                                    {showComparacion && comparacionData && (
-                                        <div className="mt-1.5 text-[10px] text-gray-400 border-t border-white/5 pt-1.5">
-                                            Anterior: <span className="text-amber-400 font-bold">
-                                                {comparacionData.horasTrabajadas.toFixed(1).replace(/\.0$/, '')}h
+                                <>
+                                    {/* Planificadas */}
+                                    <div className="p-3 bg-black/20 rounded-xl border border-white/5">
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                            <Clock className="w-3.5 h-3.5 text-indigo-400" />
+                                            <span className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">Planificadas</span>
+                                        </div>
+                                        <div className="flex items-end gap-1.5">
+                                            <span className="text-xl font-black text-indigo-300">
+                                                {informeData.horasPlanificadas.toFixed(1).replace(/\.0$/, '')}h
                                             </span>
+                                            <span className="text-[10px] text-gray-500 mb-0.5">{informeData.totalPlanificaciones} turnos</span>
+                                        </div>
+                                        {showComparacion && comparacionData && (() => {
+                                            const diff = informeData.horasPlanificadas - comparacionData.horasPlanificadas;
+                                            const pct = comparacionData.horasPlanificadas > 0 ? ((diff / comparacionData.horasPlanificadas) * 100).toFixed(0) : null;
+                                            return (
+                                                <div className="mt-1.5 text-[10px] border-t border-white/5 pt-1.5">
+                                                    <div className="flex items-center justify-between text-gray-400">
+                                                        <span>Anterior: <span className="text-amber-400 font-bold">{comparacionData.horasPlanificadas.toFixed(1).replace(/\.0$/, '')}h</span></span>
+                                                        {pct !== null && (
+                                                            <span className={`font-bold ${diff >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                                {diff >= 0 ? '+' : ''}{pct}%
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+
+                                    {/* Trabajadas (registro) */}
+                                    <div className="p-3 bg-black/20 rounded-xl border border-white/5">
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                            <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                                            <span className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">Trabajadas</span>
+                                        </div>
+                                        <div className="flex items-end gap-1.5">
+                                            <span className="text-xl font-black text-emerald-400">
+                                                {informeData.horasTrabajadas.toFixed(1).replace(/\.0$/, '')}h
+                                            </span>
+                                            <span className="text-[10px] text-gray-500 mb-0.5">{informeData.totalRegistros} reg.</span>
+                                        </div>
+                                        {showComparacion && comparacionData && (() => {
+                                            const diff = informeData.horasTrabajadas - comparacionData.horasTrabajadas;
+                                            const pct = comparacionData.horasTrabajadas > 0 ? ((diff / comparacionData.horasTrabajadas) * 100).toFixed(0) : null;
+                                            return (
+                                                <div className="mt-1.5 text-[10px] border-t border-white/5 pt-1.5">
+                                                    <div className="flex items-center justify-between text-gray-400">
+                                                        <span>Anterior: <span className="text-amber-400 font-bold">{comparacionData.horasTrabajadas.toFixed(1).replace(/\.0$/, '')}h</span></span>
+                                                        {pct !== null && (
+                                                            <span className={`font-bold ${diff >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                                {diff >= 0 ? '+' : ''}{pct}%
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+                                    </div>
+
+                                    {/* Pendientes */}
+                                    {informeData.horasPendientes > 0 && (
+                                        <div className="p-3 bg-black/20 rounded-xl border border-amber-500/20">
+                                            <div className="flex items-center gap-1.5 mb-1">
+                                                <Clock className="w-3.5 h-3.5 text-amber-400" />
+                                                <span className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">Pendientes</span>
+                                            </div>
+                                            <div className="flex items-end gap-1.5">
+                                                <span className="text-xl font-black text-amber-400">
+                                                    {informeData.horasPendientes.toFixed(1).replace(/\.0$/, '')}h
+                                                </span>
+                                                <span className="text-[10px] text-gray-500 mb-0.5">por revisar</span>
+                                            </div>
                                         </div>
                                     )}
-                                </div>
+                                </>
                             )}
 
                             {showAusencias && (
@@ -628,11 +722,21 @@ export default function InformePanel() {
                                             {informeData.ausenciasPendientes} pendiente{informeData.ausenciasPendientes > 1 ? 's' : ''}
                                         </p>
                                     )}
-                                    {showComparacion && comparacionData && (
-                                        <div className="mt-1.5 text-[10px] text-gray-400 border-t border-white/5 pt-1.5">
-                                            Anterior: <span className="text-amber-400 font-bold">{comparacionData.ausencias}</span>
-                                        </div>
-                                    )}
+                                    {showComparacion && comparacionData && (() => {
+                                        const diff = informeData.ausencias - comparacionData.ausencias;
+                                        return (
+                                            <div className="mt-1.5 text-[10px] border-t border-white/5 pt-1.5">
+                                                <div className="flex items-center justify-between text-gray-400">
+                                                    <span>Anterior: <span className="text-amber-400 font-bold">{comparacionData.ausencias}</span></span>
+                                                    {comparacionData.ausencias > 0 && (
+                                                        <span className={`font-bold ${diff <= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                            {diff >= 0 ? '+' : ''}{diff}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             )}
 
@@ -646,6 +750,13 @@ export default function InformePanel() {
                                         <span className="text-xl font-black text-cyan-300">{informeData.equipos}</span>
                                         <span className="text-[10px] text-gray-500 mb-0.5">proyectos</span>
                                     </div>
+                                </div>
+                            )}
+
+                            {showComparacion && comparacionData && prevPeriodLabel && (
+                                <div className="p-2 bg-amber-500/10 rounded-lg border border-amber-500/20 text-center">
+                                    <p className="text-[9px] text-amber-400/70 uppercase tracking-wider font-bold">Comparando con</p>
+                                    <p className="text-[10px] text-amber-300 font-medium mt-0.5">{prevPeriodLabel}</p>
                                 </div>
                             )}
                         </div>
