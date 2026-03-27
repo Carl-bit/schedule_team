@@ -21,7 +21,15 @@ const solicitudRoutes = require('./routes/solicitud.route');
 app.use(express.json()); // Middleware para entender JSON (importante para el futuro)
 
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3001',
+    origin: function (origin, callback) {
+        // Permitir requests sin origin (server-to-server, como el rewrite de Next.js)
+        if (!origin) return callback(null, true);
+        const allowed = (process.env.CORS_ORIGIN || 'http://localhost:3001').split(',');
+        if (allowed.includes('*') || allowed.includes(origin)) {
+            return callback(null, true);
+        }
+        callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']
 }));
