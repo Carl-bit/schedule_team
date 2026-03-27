@@ -92,9 +92,3 @@ docker compose up --build
 | **Turnos** | `/api/planificacion`| Calendario maestro. |
 ```
 
----
-
-### 💡 Un último detalle:
-En tu captura se ve que el archivo se llama `README.md`. Asegúrate de que al editarlo en GitHub (o en tu VS Code) no haya caracteres extraños al inicio del archivo. Si usas VS Code, presiona `Ctrl + Shift + V` para ver una vista previa antes de subirlo y confirmar que los saltos de línea funcionan.
-
-¿Te gustaría que te ayude a crear una sección de **"Cómo contribuir"** o a configurar un **GitHub Action** para que el proyecto se testee solo al subirlo?
