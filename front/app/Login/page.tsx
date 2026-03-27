@@ -7,6 +7,7 @@ import { API_BASE } from '@/app/lib/api';
 
 export default function LoginPage() {
     const router = useRouter();
+    console.log('Si estas debugeando, la contraseña de los usuarios de prueba es: hash_secreto_123 para el jefe y hash_secreto_456 para el trabajador'); 
 
     // Estados para guardar lo que escribe el usuario
     const [email, setEmail] = useState('');
@@ -134,8 +135,8 @@ export default function LoginPage() {
                 <div className="mt-8 pt-6 border-t border-gray-700 text-xs text-gray-500 text-center">
                     <p>Credenciales de prueba:</p>
                     <div className="mt-2 space-y-1">
-                        <p>Jefe: <span className="text-blue-400">carlos@empresa.com</span> / hash_secreto_123</p>
-                        <p>Trabajador: <span className="text-purple-400">ana@empresa.com</span> / hash_secreto_456</p>
+                        <p>Jefe: <span className="text-blue-400">carlos@empresa.com</span> / admin123</p>
+                        <p>Trabajador: <span className="text-purple-400">ana@empresa.com</span> / ana123</p>
                     </div>
                 </div>
 
