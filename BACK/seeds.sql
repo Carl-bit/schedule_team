@@ -38,7 +38,7 @@ VALUES (
         'USER_BOSS',
         'Carlos',
         'carlos@empresa.com',
-        'hash_secreto_123',
+        '$2b$10$p6dkSZub4q1kK2OjJZ./yOv.yc4ApAxi9B1nFvDGTFxOrxm5Z33aW',
         'PUESTO_JEFE'
     ) ON CONFLICT (empleado_id) DO NOTHING;
 -- La Empleada: Ana
@@ -53,7 +53,7 @@ VALUES (
         'USER_ANA',
         'Ana',
         'ana@empresa.com',
-        'hash_secreto_456',
+        '$2b$10$1VqFrqiGEtVjCn.bUKqte.TZJlzR/kd6pQ7t4B4ClKbf17JkP2Vlq',
         'PUESTO_SSR'
     ) ON CONFLICT (empleado_id) DO NOTHING;
 -- El Proyecto: Sistema de Horas

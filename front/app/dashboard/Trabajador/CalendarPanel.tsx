@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   ChevronLeft, ChevronRight, Plus,
   Clock, CheckCircle2, AlertCircle, Calendar,
@@ -44,6 +44,170 @@ const getEstadoInfo = (estadoId: EstadoId) => {
 import { API_BASE } from '@/app/lib/api';
 
 // Datos iniciales eliminados, ahora vienen de la BD
+// --- COMPONENTE DE ENTRADA DE HORA CON SUGERENCIAS ---
+function generateTimeSuggestions(input: string): string[] {
+  if (!input.trim()) return [];
+  const clean = input.replace(/[^0-9:]/g, '');
+  if (!clean) return [];
+
+  const suggestions: string[] = [];
+  // Generar todas las horas posibles en intervalos de 30 min
+  for (let h = 0; h < 24; h++) {
+    for (const m of [0, 30]) {
+      const time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      // Si el usuario escribió solo dígitos sin ":", comparar flexible
+      if (clean.includes(':')) {
+        if (time.startsWith(clean)) suggestions.push(time);
+      } else {
+        // "1" -> 10:00,10:30,...,19:30,01:00,01:30
+        // "15" -> 15:00,15:30
+        // "2" -> 20:00,20:30,...,02:00,02:30
+        const hStr = String(h).padStart(2, '0');
+        const full = hStr + String(m).padStart(2, '0');
+        if (hStr.startsWith(clean) || full.startsWith(clean) || String(h).startsWith(clean)) {
+          suggestions.push(time);
+        }
+      }
+    }
+  }
+  return suggestions;
+}
+
+function formatTimeValue(raw: string): string {
+  const clean = raw.replace(/[^0-9:]/g, '');
+  if (!clean) return '';
+
+  // Si ya tiene formato HH:MM válido
+  if (/^\d{1,2}:\d{2}$/.test(clean)) {
+    const [h, m] = clean.split(':').map(Number);
+    if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
+  }
+  // Si son solo dígitos
+  const digits = clean.replace(/:/g, '');
+  if (digits.length <= 2) {
+    const h = Math.min(parseInt(digits) || 0, 23);
+    return `${String(h).padStart(2, '0')}:00`;
+  }
+  if (digits.length >= 3) {
+    const h = Math.min(parseInt(digits.slice(0, 2)) || 0, 23);
+    const m = Math.min(parseInt(digits.slice(2, 4)) || 0, 59);
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  }
+  return '00:00';
+}
+
+function TimeInput({ value, onChange, disabled, placeholder }: {
+  value: string;
+  onChange: (val: string) => void;
+  disabled?: boolean;
+  placeholder?: string;
+}) {
+  const [inputVal, setInputVal] = useState(value);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedIdx, setSelectedIdx] = useState(-1);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setInputVal(value); }, [value]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+        // Formatear al salir
+        if (inputVal && inputVal !== value) {
+          const formatted = formatTimeValue(inputVal);
+          setInputVal(formatted);
+          onChange(formatted);
+        }
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [inputVal, value, onChange]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    setInputVal(raw);
+    const sug = generateTimeSuggestions(raw);
+    setSuggestions(sug);
+    setShowSuggestions(sug.length > 0);
+    setSelectedIdx(-1);
+  };
+
+  const selectSuggestion = (time: string) => {
+    setInputVal(time);
+    onChange(time);
+    setShowSuggestions(false);
+    setSelectedIdx(-1);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showSuggestions) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIdx(prev => Math.min(prev + 1, suggestions.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIdx(prev => Math.max(prev - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedIdx >= 0 && selectedIdx < suggestions.length) {
+        selectSuggestion(suggestions[selectedIdx]);
+      } else {
+        const formatted = formatTimeValue(inputVal);
+        setInputVal(formatted);
+        onChange(formatted);
+        setShowSuggestions(false);
+      }
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleBlur = () => {
+    // Delay para permitir click en sugerencia
+    setTimeout(() => {
+      if (inputVal && !showSuggestions) {
+        const formatted = formatTimeValue(inputVal);
+        setInputVal(formatted);
+        onChange(formatted);
+      }
+    }, 150);
+  };
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <input
+        type="text"
+        value={inputVal}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
+        onFocus={() => { if (inputVal) { const s = generateTimeSuggestions(inputVal); setSuggestions(s); setShowSuggestions(s.length > 0); } }}
+        disabled={disabled}
+        placeholder={placeholder || '00:00'}
+        className={`w-full bg-black/30 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 text-sm ${disabled ? 'opacity-50 cursor-not-allowed text-gray-500' : ''}`}
+      />
+      {showSuggestions && suggestions.length > 0 && (
+        <div className="absolute z-50 mt-1 w-full max-h-40 overflow-y-auto bg-gray-800 border border-gray-600 rounded-lg shadow-lg">
+          {suggestions.map((s, i) => (
+            <div
+              key={s}
+              onMouseDown={() => selectSuggestion(s)}
+              className={`px-3 py-1.5 text-sm cursor-pointer ${i === selectedIdx ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}
+            >
+              {s}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_id?: string }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [labels, setLabels] = useState<ShiftLabel[]>([]);
@@ -1278,12 +1442,27 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
                   </div>
                   <div className="flex flex-col gap-1 mb-4">
                     <label className="text-xs font-bold text-gray-400">Rango de Horas</label>
-                    <input
-                      type="text" value={createData.timeRange} onChange={e => setCreateData({ ...createData, timeRange: e.target.value })}
-                      disabled={isAbsenceType(createData.type)}
-                      className={`bg-black/30 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 text-sm ${isAbsenceType(createData.type) ? 'opacity-50 cursor-not-allowed text-gray-500' : ''
-                        }`} placeholder="00:00 - 00:00"
-                    />
+                    <div className="flex items-center gap-2">
+                      <TimeInput
+                        value={createData.timeRange !== 'Todo el día' ? (createData.timeRange.split(' - ')[0] || '00:00') : ''}
+                        onChange={(val) => {
+                          const end = createData.timeRange.split(' - ')[1] || '00:00';
+                          setCreateData({ ...createData, timeRange: `${val} - ${end}` });
+                        }}
+                        disabled={isAbsenceType(createData.type)}
+                        placeholder="Inicio"
+                      />
+                      <span className="text-gray-400 text-sm font-bold">hasta</span>
+                      <TimeInput
+                        value={createData.timeRange !== 'Todo el día' ? (createData.timeRange.split(' - ')[1] || '00:00') : ''}
+                        onChange={(val) => {
+                          const start = createData.timeRange.split(' - ')[0] || '00:00';
+                          setCreateData({ ...createData, timeRange: `${start} - ${val}` });
+                        }}
+                        disabled={isAbsenceType(createData.type)}
+                        placeholder="Fin"
+                      />
+                    </div>
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-bold text-gray-400">Tipo</label>
