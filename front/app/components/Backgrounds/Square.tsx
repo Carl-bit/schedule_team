@@ -17,12 +17,6 @@ interface SquaresProps {
     hoverFillColor?: CanvasStrokeStyle;
 }
 
-interface ActiveSquare {
-    x: number;
-    y: number;
-    opacity: number; // Para que aparezca y desaparezca suavemente
-}
-
 const Squares: React.FC<SquaresProps> = ({
     direction = 'right',
     speed = 1,
@@ -36,7 +30,6 @@ const Squares: React.FC<SquaresProps> = ({
     const numSquaresY = useRef<number>(0);
     const gridOffset = useRef<GridOffset>({ x: 0, y: 0 });
     const hoveredSquareRef = useRef<GridOffset | null>(null);
-    const activeSquares = useRef<ActiveSquare[]>([]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -69,12 +62,6 @@ const Squares: React.FC<SquaresProps> = ({
                     const squareX = (gridX * squareSize) - gridOffset.current.x;
                     const squareY = (gridY * squareSize) - gridOffset.current.y;
 
-                    // Buscamos si este cuadro específico es un "fantasma" activo
-                    const activeSquare = activeSquares.current.find(
-                        sq => sq.x === gridX && sq.y === gridY
-                    );
-
-                    // Verificamos si el mouse está encima
                     const isHovered = hoveredSquareRef.current &&
                         gridX === hoveredSquareRef.current.x &&
                         gridY === hoveredSquareRef.current.y;
@@ -82,11 +69,6 @@ const Squares: React.FC<SquaresProps> = ({
                     if (isHovered) {
                         ctx.fillStyle = hoverFillColor;
                         ctx.fillRect(squareX, squareY, squareSize, squareSize);
-                    } else if (activeSquare) {
-                        ctx.globalAlpha = activeSquare.opacity;
-                        ctx.fillStyle = hoverFillColor;
-                        ctx.fillRect(squareX, squareY, squareSize, squareSize);
-                        ctx.globalAlpha = 1;
                     }
 
                     ctx.strokeStyle = borderColor;
@@ -130,24 +112,6 @@ const Squares: React.FC<SquaresProps> = ({
                     break;
                 default:
                     break;
-            }
-
-            activeSquares.current = activeSquares.current
-                .map((sq) => ({ ...sq, opacity: sq.opacity - 0.009 }))
-                .filter((sq) => sq.opacity > 0);
-
-            for (let i = 0; i < 5; i++) {
-                if (Math.random() < 0.3) {
-                    const startX = Math.floor(gridOffset.current.x / squareSize);
-                    const startY = Math.floor(gridOffset.current.y / squareSize);
-
-                    const newX = startX + Math.floor(Math.random() * numSquaresX.current);
-                    const newY = startY + Math.floor(Math.random() * numSquaresY.current);
-
-                    if (!activeSquares.current.some(sq => sq.x === newX && sq.y === newY)) {
-                        activeSquares.current.push({ x: newX, y: newY, opacity: 1 });
-                    }
-                }
             }
 
             drawGrid();
