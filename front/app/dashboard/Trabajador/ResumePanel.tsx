@@ -3,6 +3,9 @@ import { useState, useEffect } from 'react';
 import { Clock, CalendarClock, Users, AlertCircle, CheckCircle2, Briefcase, Loader2, CalendarOff, XCircle } from 'lucide-react';
 
 import { API_BASE } from '@/app/lib/api';
+import { useUser } from '@/app/hooks/useUser';
+import { getEstadoStyle } from '@/app/lib/constants';
+import { formatearHora, formatearFechaCorta } from '@/app/lib/dates';
 
 interface ProximoTurno {
     id: string;
@@ -14,18 +17,9 @@ interface ProximoTurno {
     esDelLider: boolean;
 }
 
-const getEstadoTurno = (estadoId: number) => {
-    switch (estadoId) {
-        case 1: return { label: 'Pendiente', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', barColor: 'bg-amber-500' };
-        case 2: return { label: 'Aprobado', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', barColor: 'bg-emerald-500' };
-        case 3: return { label: 'Corrección', color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20', barColor: 'bg-orange-500' };
-        case 4: return { label: 'En Revisión', color: 'text-sky-400', bg: 'bg-sky-500/10', border: 'border-sky-500/20', barColor: 'bg-sky-500' };
-        case 5: return { label: 'Rechazado', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20', barColor: 'bg-red-500' };
-        default: return { label: 'Desconocido', color: 'text-gray-400', bg: 'bg-gray-500/10', border: 'border-gray-500/20', barColor: 'bg-gray-500' };
-    }
-};
 
 export default function ResumePanel() {
+    const { user } = useUser();
     const [nombreUsuario, setNombreUsuario] = useState('');
     const [proximosTurnos, setProximosTurnos] = useState<ProximoTurno[]>([]);
     const [pendientesHoras, setPendientesHoras] = useState(0);
@@ -39,11 +33,9 @@ export default function ResumePanel() {
         const fetchResumen = async () => {
             try {
                 setIsLoading(true);
-                const storedData = localStorage.getItem('user_data');
-                if (!storedData) return;
-                const userData = JSON.parse(storedData);
-                const userId = userData.empleado_id;
-                setNombreUsuario(userData.nombre_empleado?.split(' ')[0] || 'usuario');
+                if (!user) return;
+                const userId = user.empleado_id;
+                setNombreUsuario(user.nombre_empleado?.split(' ')[0] || 'usuario');
 
                 const timestamp = Date.now();
                 const [planRes, horasRes, asignacionesRes, ausenciasRes] = await Promise.all([
@@ -138,27 +130,8 @@ export default function ResumePanel() {
         };
 
         fetchResumen();
-    }, []);
+    }, [user]);
 
-    const formatearHora = (fechaStr: string) => {
-        return new Date(fechaStr).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-    };
-
-    const formatearFechaCorta = (fechaStr: string) => {
-        const date = new Date(fechaStr);
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
-        const fechaTurno = new Date(date);
-        fechaTurno.setHours(0, 0, 0, 0);
-
-        if (fechaTurno.getTime() === hoy.getTime()) return 'Hoy';
-
-        const manana = new Date(hoy);
-        manana.setDate(manana.getDate() + 1);
-        if (fechaTurno.getTime() === manana.getTime()) return 'Mañana';
-
-        return date.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' });
-    };
 
     if (isLoading) {
         return (
@@ -256,7 +229,7 @@ export default function ResumePanel() {
                     {proximosTurnos.length > 0 ? (
                         proximosTurnos.map((turno) => {
                             const esHoy = formatearFechaCorta(turno.fecha) === 'Hoy';
-                            const ei = getEstadoTurno(turno.estadoId);
+                            const ei = getEstadoStyle(turno.estadoId);
                             return (
                                 <div
                                     key={turno.id}

@@ -3,19 +3,8 @@ import { useState, useEffect } from 'react';
 import { Users, Clock, CheckCircle2, AlertCircle, XCircle, Briefcase, CalendarClock, Loader2, CalendarOff, ShieldCheck, ClipboardList, MessageSquare, Check, X } from 'lucide-react';
 
 import { API_BASE } from '@/app/lib/api';
-
-// --- Interfaces ---
-interface AsignacionApi {
-    asignacion_id: number;
-    empleado_id: string;
-    nombre_empleado: string;
-    proyecto_id: string;
-    nombre_proyecto: string;
-    cliente: string | null;
-    fecha_inicio: string | null;
-    fecha_entrega: string | null;
-    rol_trabajo: string;
-}
+import { useUser } from '@/app/hooks/useUser';
+import type { Asignacion, Ausencia, SolicitudCobertura } from '@/app/types';
 
 interface ProyectoSolicitud {
     proyecto_id: string;
@@ -37,36 +26,13 @@ interface SolicitudHora {
     esDelLider: boolean;
 }
 
-interface Ausencia {
-    ausencia_id: string;
-    tipo_ausencia_id: string;
-    motivo: string;
-    requiere_aprobacion: boolean;
-    inicio_ausencia: string;
-    fin_ausencia: string;
-    estado_id: number;
-}
-
-interface SolicitudCobertura {
-    solicitud_id: string;
-    empleado_id: string;
-    nombre_asignado: string;
-    creado_por: string;
-    nombre_lider: string;
-    motivo: string;
-    descripcion: string | null;
-    fecha_inicio: string;
-    fecha_fin: string;
-    estado: string;
-    motivo_rechazo: string | null;
-    created_at: string;
-}
 
 type TabActivo = 'coberturas' | 'equipos' | 'horas' | 'ausencias';
 type FiltroHoras = 'todos' | 'pendientes' | 'aprobadas' | 'mis_solicitudes' | 'del_lider';
 type FiltroAusencias = 'todas' | 'pendientes' | 'aprobadas' | 'registros';
 
 export default function SolicitudesPanel() {
+    const { user } = useUser();
     const [tabActivo, setTabActivo] = useState<TabActivo>('coberturas');
     const [proyectos, setProyectos] = useState<ProyectoSolicitud[]>([]);
     const [solicitudesHoras, setSolicitudesHoras] = useState<SolicitudHora[]>([]);
@@ -83,22 +49,18 @@ export default function SolicitudesPanel() {
     const [motivoRechazoText, setMotivoRechazoText] = useState('');
 
     const getUserId = (): string | null => {
-        const storedData = localStorage.getItem('user_data');
-        if (!storedData) return null;
-        return JSON.parse(storedData).empleado_id;
+        return user?.empleado_id || null;
     };
 
     // --- Fetch de datos ---
     useEffect(() => {
+        if (!user) return;
+
         const fetchData = async () => {
             try {
                 setIsLoading(true);
                 setError('');
-                const userId = getUserId();
-                if (!userId) {
-                    setError('No se encontró información del usuario en sesión.');
-                    return;
-                }
+                const userId = user.empleado_id;
 
                 const timestamp = Date.now();
 
@@ -112,7 +74,7 @@ export default function SolicitudesPanel() {
 
                 // --- Procesar Asignaciones (Equipos) ---
                 if (asignacionesRes.ok) {
-                    const data: AsignacionApi[] = await asignacionesRes.json();
+                    const data: Asignacion[] = await asignacionesRes.json();
                     const mapProyectos = new Map<string, ProyectoSolicitud>();
 
                     data.forEach((item) => {
@@ -217,7 +179,7 @@ export default function SolicitudesPanel() {
         };
 
         fetchData();
-    }, []);
+    }, [user]);
 
     // --- Filtros ---
     const solicitudesFiltradas = solicitudesHoras.filter(s => {

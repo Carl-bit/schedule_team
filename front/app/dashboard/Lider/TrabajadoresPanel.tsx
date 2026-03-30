@@ -5,15 +5,7 @@ import ModalNuevoTrabajador from './ModalNuevoTrabajador';
 import ModalEditarTrabajador from './ModalEditarTrabajador';
 
 import { API_BASE } from '@/app/lib/api';
-
-interface Empleado {
-    empleado_id: string;
-    nombre_empleado: string;
-    alias_empleado: string;
-    correo_empleado: string;
-    telefono_empleado: string;
-    puesto_empleado: string;
-}
+import type { Empleado } from '@/app/types';
 
 export default function TrabajadoresPanel() {
     const [empleados, setEmpleados] = useState<Empleado[]>([]);

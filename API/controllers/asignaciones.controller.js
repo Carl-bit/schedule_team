@@ -1,86 +1,31 @@
 const asignacionService = require('../services/asignaciones.service');
-const { obtenerFraseAleatoria } = require('../utils/naas/naas');
+const { asyncHandler, AppError } = require('../middleware/errorHandler');
 
-const getAsignaciones = async (req, res) => {
-    try {
-        const asignaciones = await asignacionService.getAsignaciones();
+const getAsignaciones = asyncHandler(async (req, res) => {
+    const asignaciones = await asignacionService.getAsignaciones();
+    res.json(asignaciones);
+});
 
-        if (asignaciones.length === 0) {
-            return res.status(404).json({
-                mensaje: "Nadie está trabajando en nada... sospechoso.",
-                frase: obtenerFraseAleatoria()
-            });
-        }
-        res.json(asignaciones);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
+const createAsignacion = asyncHandler(async (req, res) => {
+    const { empleado_id, proyecto_id, rol_trabajo_id } = req.body;
+    const nuevaAsignacion = await asignacionService.createAsignacion(empleado_id, proyecto_id, rol_trabajo_id);
+    res.status(201).json(nuevaAsignacion);
+});
 
-const createAsignacion = async (req, res) => {
-    try {
-        const { empleado_id, proyecto_id, rol_trabajo_id } = req.body;
+const deleteAsignacion = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const asignacionBorrada = await asignacionService.deleteAsignacion(id);
+    if (!asignacionBorrada) throw new AppError("Esa asignación no existe.", 404);
+    res.json({ mensaje: "Empleado removido del proyecto.", datos: asignacionBorrada });
+});
 
-        if (!empleado_id || !proyecto_id || !rol_trabajo_id) {
-            return res.status(400).json({
-                error: "Faltan datos (empleado, proyecto o rol).",
-                frase: obtenerFraseAleatoria()
-            });
-        }
-
-        const nuevaAsignacion = await asignacionService.createAsignacion(empleado_id, proyecto_id, rol_trabajo_id);
-        res.status(201).json(nuevaAsignacion);
-
-    } catch (error) {
-        console.error(error);
-        // Error 23503: Llave foránea no encontrada (Empleado o Proyecto no existen)
-        if (error.code === '23503') {
-            return res.status(400).json({
-                error: "Uno de los IDs (empleado, proyecto o rol) no existe en la base de datos.",
-                frase: obtenerFraseAleatoria()
-            });
-        }
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
-
-const deleteAsignacion = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const asignacionBorrada = await asignacionService.deleteAsignacion(id);
-
-        if (!asignacionBorrada) {
-            return res.status(404).json({ error: "Esa asignación no existe.", frase: obtenerFraseAleatoria() });
-        }
-        res.json({ mensaje: "Empleado removido del proyecto.", datos: asignacionBorrada });
-
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
-
-const updateAsignacion = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { rol_trabajo_id } = req.body;
-
-        if (!rol_trabajo_id) {
-            return res.status(400).json({ error: "Falta el rol.", frase: obtenerFraseAleatoria() });
-        }
-
-        const asignacionActualizada = await asignacionService.updateAsignacion(id, rol_trabajo_id);
-
-        if (!asignacionActualizada) {
-            return res.status(404).json({ error: "Asignación no encontrada.", frase: obtenerFraseAleatoria() });
-        }
-        res.json(asignacionActualizada);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
+const updateAsignacion = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { rol_trabajo_id } = req.body;
+    const asignacionActualizada = await asignacionService.updateAsignacion(id, rol_trabajo_id);
+    if (!asignacionActualizada) throw new AppError("Asignación no encontrada.", 404);
+    res.json(asignacionActualizada);
+});
 
 module.exports = {
     getAsignaciones,

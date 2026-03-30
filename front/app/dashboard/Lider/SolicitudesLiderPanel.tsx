@@ -3,49 +3,31 @@ import { useState, useEffect, useMemo } from 'react';
 import { ClipboardList, Clock, CalendarPlus, History, Check, X, Loader2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Filter, RefreshCw, MessageSquare, UserPlus, Briefcase, CalendarOff, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 import { API_BASE } from '@/app/lib/api';
+import { useUser } from '@/app/hooks/useUser';
+import { getEstadoStyle, ESTADO_COBERTURA_STYLES } from '@/app/lib/constants';
+import { formatDate, formatDateDMY, formatTime } from '@/app/lib/dates';
 
 type TabType = 'revision' | 'coberturas' | 'crear' | 'historial';
 type SubFilter = 'todos' | 'planificacion' | 'horas' | 'ausencias';
 
-interface SolicitudCobertura {
-    solicitud_id: string; empleado_id: string; nombre_asignado: string;
-    creado_por: string; nombre_lider: string; motivo: string;
-    descripcion: string | null; fecha_inicio: string; fecha_fin: string;
-    estado: string; motivo_rechazo: string | null; created_at: string;
-}
+import type { SolicitudCobertura } from '@/app/types';
 interface PendingItem {
     id: string; tipo: 'planificacion' | 'hora' | 'ausencia';
     empleado_id: string; nombre_empleado: string;
     detalle: string; fecha: string; estado_id: number;
     extra?: string;
 }
-interface Empleado { empleado_id: string; nombre_empleado: string; }
+// Empleado type from shared types (uses full Empleado, only needs empleado_id + nombre_empleado fields)
+import type { Empleado } from '@/app/types';
 
-const formatDate = (d: string) => {
-    if (!d) return '—';
-    const date = new Date(d);
-    return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
-};
-const formatDateDMY = (s: string) => { if (!s) return '—'; const p = s.split('-'); return p.length === 3 ? `${p[2]}-${p[1]}-${p[0]}` : s; };
-const formatTime = (d: string) => { if (!d) return '—'; const date = new Date(d); return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`; };
-
-const estadoStyles: Record<string, { label: string; color: string }> = {
-    pendiente: { label: 'Pendiente', color: 'bg-amber-500/20 text-amber-400' },
-    aceptada: { label: 'Aceptada', color: 'bg-emerald-500/20 text-emerald-400' },
-    rechazada: { label: 'Rechazada', color: 'bg-red-500/20 text-red-400' },
-};
 const estadoIdInfo = (id: number) => {
-    switch (id) {
-        case 1: return { label: 'Pendiente', color: 'bg-amber-500/20 text-amber-400', border: 'border-amber-500/30' };
-        case 2: return { label: 'Aprobado', color: 'bg-emerald-500/20 text-emerald-400', border: 'border-emerald-500/30' };
-        case 3: return { label: 'Corrección', color: 'bg-orange-500/20 text-orange-400', border: 'border-orange-500/30' };
-        case 5: return { label: 'Rechazado', color: 'bg-red-500/20 text-red-400', border: 'border-red-500/30' };
-        default: return { label: 'Desconocido', color: 'bg-gray-500/20 text-gray-400', border: 'border-gray-500/30' };
-    }
+    const s = getEstadoStyle(id);
+    return { label: s.label, color: `${s.bg} ${s.color}`, border: s.border };
 };
 
 // =========== Crear Solicitud (Cobertura) subcomponent ===========
 function CrearSolicitudTab({ empleados, onCreated }: { empleados: Empleado[]; onCreated: () => void }) {
+    const { user } = useUser();
     const [crearEmpleado, setCrearEmpleado] = useState('');
     const [crearMotivo, setCrearMotivo] = useState('');
     const [crearDescripcion, setCrearDescripcion] = useState('');
@@ -107,9 +89,8 @@ function CrearSolicitudTab({ empleados, onCreated }: { empleados: Empleado[]; on
         setCrearError(''); setCrearSuccess('');
         if (!crearEmpleado || !crearMotivo || !crearInicio || !crearFin) { setCrearError('Todos los campos obligatorios deben llenarse'); return; }
         try {
-            const userData = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user_data') || '{}') : {};
             const res = await fetch(`${API_BASE}/solicitudes`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ empleado_id: crearEmpleado, creado_por: userData.empleado_id, motivo: crearMotivo, descripcion: crearDescripcion || null, fecha_inicio: `${crearInicio}T00:00:00`, fecha_fin: `${crearFin}T23:59:59` }) });
+                body: JSON.stringify({ empleado_id: crearEmpleado, creado_por: user?.empleado_id, motivo: crearMotivo, descripcion: crearDescripcion || null, fecha_inicio: `${crearInicio}T00:00:00`, fecha_fin: `${crearFin}T23:59:59` }) });
             if (res.ok) {
                 setCrearSuccess('Solicitud de cobertura enviada'); setCrearEmpleado(''); setCrearMotivo(''); setCrearDescripcion(''); setCrearInicio(''); setCrearFin('');
                 onCreated(); setTimeout(() => setCrearSuccess(''), 3000);
@@ -180,6 +161,7 @@ function ModalReasignar({ solicitud, empleados, onClose, onDone }: { solicitud: 
 
 // =========== Main Component ===========
 export default function SolicitudesLiderPanel() {
+    const { user } = useUser();
     const [activeTab, setActiveTab] = useState<TabType>('revision');
     const [subFilter, setSubFilter] = useState<SubFilter>('todos');
     const [solicitudes, setSolicitudes] = useState<SolicitudCobertura[]>([]);
@@ -190,8 +172,7 @@ export default function SolicitudesLiderPanel() {
     const [updatingId, setUpdatingId] = useState<string | null>(null);
 
     const getLiderId = (): string => {
-        const userData = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user_data') || '{}') : {};
-        return userData.empleado_id || '';
+        return user?.empleado_id || '';
     };
 
     const fetchAll = async () => {
@@ -507,7 +488,7 @@ export default function SolicitudesLiderPanel() {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2 shrink-0">
-                                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${estadoStyles[s.estado]?.color || 'bg-gray-500/20 text-gray-400'}`}>{estadoStyles[s.estado]?.label || s.estado}</span>
+                                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${ESTADO_COBERTURA_STYLES[s.estado]?.color || 'bg-gray-500/20 text-gray-400'}`}>{ESTADO_COBERTURA_STYLES[s.estado]?.label || s.estado}</span>
                                                 {s.estado === 'rechazada' && <button onClick={() => setReasignarSolicitud(s)} className="flex items-center gap-1 bg-indigo-600/80 hover:bg-indigo-500 text-white px-2 py-1 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"><RefreshCw className="w-3 h-3" /> Reasignar</button>}
                                             </div>
                                         </div>

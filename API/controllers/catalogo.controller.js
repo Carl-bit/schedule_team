@@ -1,257 +1,129 @@
 const catalogoService = require('../services/catalogo.service');
-const { obtenerFraseAleatoria } = require('../utils/naas/naas');
+const { asyncHandler, AppError } = require('../middleware/errorHandler');
 
-// Función genérica para manejar las respuestas y no repetir código
 const manejarRespuesta = (res, datos, nombreCatalogo) => {
     if (!datos || datos.length === 0) {
         return res.status(404).json({
             mensaje: `El catálogo de ${nombreCatalogo} está vacío.`,
-            tip: "Ejecuta los seeds.sql en tu base de datos.",
-            frase: obtenerFraseAleatoria()
+            tip: "Ejecuta los seeds.sql en tu base de datos."
         });
     }
     res.json(datos);
 };
 
-const getRoles = async (req, res) => {
-    try {
-        const roles = await catalogoService.getRoles();
-        manejarRespuesta(res, roles, "Roles");
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
+const getRoles = asyncHandler(async (req, res) => {
+    const roles = await catalogoService.getRoles();
+    manejarRespuesta(res, roles, "Roles");
+});
 
-const getEstados = async (req, res) => {
-    try {
-        const estados = await catalogoService.getEstados();
-        manejarRespuesta(res, estados, "Estados");
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
+const getEstados = asyncHandler(async (req, res) => {
+    const estados = await catalogoService.getEstados();
+    manejarRespuesta(res, estados, "Estados");
+});
 
-const getAusencias = async (req, res) => {
-    try {
-        const ausencias = await catalogoService.getAusencias();
-        manejarRespuesta(res, ausencias, "Tipos de Ausencia");
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
+const getAusencias = asyncHandler(async (req, res) => {
+    const ausencias = await catalogoService.getAusencias();
+    manejarRespuesta(res, ausencias, "Tipos de Ausencia");
+});
 
-const getPuestos = async (req, res) => {
-    try {
-        const puestos = await catalogoService.getPuestos();
-        manejarRespuesta(res, puestos, "Puestos de Empleado");
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
+const getPuestos = asyncHandler(async (req, res) => {
+    const puestos = await catalogoService.getPuestos();
+    manejarRespuesta(res, puestos, "Puestos de Empleado");
+});
 
-const createPuesto = async (req, res) => {
-    try {
-        const { nombre } = req.body; // Esperamos { "nombre": "Nuevo Cargo" }
+// --- PUESTOS ---
+const createPuesto = asyncHandler(async (req, res) => {
+    const { nombre } = req.body;
+    const nuevoPuesto = await catalogoService.createPuesto(nombre);
+    res.status(201).json(nuevoPuesto);
+});
 
-        if (!nombre) {
-            return res.status(400).json({
-                error: "El puesto necesita un nombre.",
-                frase: obtenerFraseAleatoria()
-            });
-        }
+const deletePuesto = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const puestoBorrado = await catalogoService.deletePuesto(id);
+    if (!puestoBorrado) throw new AppError("Ese puesto no existe.", 404);
+    res.json({ mensaje: "Puesto eliminado del catálogo.", datos: puestoBorrado });
+});
 
-        const nuevoPuesto = await catalogoService.createPuesto(nombre);
-        res.status(201).json(nuevoPuesto);
-
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
-
-const deletePuesto = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const puestoBorrado = await catalogoService.deletePuesto(id);
-        if (!puestoBorrado) {
-            return res.status(404).json({ error: "Ese puesto no existe." });
-        }
-        res.json({ mensaje: "Puesto eliminado del catálogo.", datos: puestoBorrado });
-    } catch (error) {
-        console.error(error);
-        if (error.code === '23503') {
-            return res.status(400).json({
-                error: "No puedes borrar este puesto: Hay empleados asignados a él.",
-                frase: obtenerFraseAleatoria()
-            });
-        }
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
-
-const updatePuesto = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { nombre } = req.body;
-        if (!nombre) return res.status(400).json({ error: 'Falta el nombre.' });
-        const updated = await catalogoService.updatePuesto(id, nombre);
-        if (!updated) return res.status(404).json({ error: 'Puesto no encontrado.' });
-        res.json(updated);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
+const updatePuesto = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { nombre } = req.body;
+    if (!nombre) throw new AppError("Falta el nombre.");
+    const updated = await catalogoService.updatePuesto(id, nombre);
+    if (!updated) throw new AppError("Puesto no encontrado.", 404);
+    res.json(updated);
+});
 
 // --- ROLES ---
-const createRol = async (req, res) => {
-    try {
-        const { rol_trabajo_id, rol_trabajo } = req.body;
-        if (!rol_trabajo) {
-            return res.status(400).json({ error: "El rol necesita un nombre." });
-        }
-        const nuevoRol = await catalogoService.createRol(rol_trabajo_id, rol_trabajo);
-        res.status(201).json(nuevoRol);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
+const createRol = asyncHandler(async (req, res) => {
+    const { rol_trabajo_id, rol_trabajo } = req.body;
+    if (!rol_trabajo) throw new AppError("El rol necesita un nombre.");
+    const nuevoRol = await catalogoService.createRol(rol_trabajo_id, rol_trabajo);
+    res.status(201).json(nuevoRol);
+});
 
-const deleteRol = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const rolBorrado = await catalogoService.deleteRol(id);
-        if (!rolBorrado) {
-            return res.status(404).json({ error: "Ese rol no existe." });
-        }
-        res.json({ mensaje: "Rol eliminado del catálogo.", datos: rolBorrado });
-    } catch (error) {
-        console.error(error);
-        if (error.code === '23503') {
-            return res.status(400).json({
-                error: "No puedes borrar este rol: Hay asignaciones usándolo.",
-                frase: obtenerFraseAleatoria()
-            });
-        }
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
+const deleteRol = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const rolBorrado = await catalogoService.deleteRol(id);
+    if (!rolBorrado) throw new AppError("Ese rol no existe.", 404);
+    res.json({ mensaje: "Rol eliminado del catálogo.", datos: rolBorrado });
+});
 
-const updateRol = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { rol_trabajo } = req.body;
-        if (!rol_trabajo) return res.status(400).json({ error: 'Falta el nombre del rol.' });
-        const updated = await catalogoService.updateRol(id, rol_trabajo);
-        if (!updated) return res.status(404).json({ error: 'Rol no encontrado.' });
-        res.json(updated);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
+const updateRol = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { rol_trabajo } = req.body;
+    if (!rol_trabajo) throw new AppError("Falta el nombre del rol.");
+    const updated = await catalogoService.updateRol(id, rol_trabajo);
+    if (!updated) throw new AppError("Rol no encontrado.", 404);
+    res.json(updated);
+});
 
 // --- ESTADOS ---
-const createEstado = async (req, res) => {
-    try {
-        const { estado } = req.body;
-        if (!estado) {
-            return res.status(400).json({ error: "El estado necesita un nombre." });
-        }
-        const nuevoEstado = await catalogoService.createEstado(estado);
-        res.status(201).json(nuevoEstado);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
+const createEstado = asyncHandler(async (req, res) => {
+    const { estado } = req.body;
+    if (!estado) throw new AppError("El estado necesita un nombre.");
+    const nuevoEstado = await catalogoService.createEstado(estado);
+    res.status(201).json(nuevoEstado);
+});
 
-const deleteEstado = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const estadoBorrado = await catalogoService.deleteEstado(id);
-        if (!estadoBorrado) {
-            return res.status(404).json({ error: "Ese estado no existe." });
-        }
-        res.json({ mensaje: "Estado eliminado del catálogo.", datos: estadoBorrado });
-    } catch (error) {
-        console.error(error);
-        if (error.code === '23503') {
-            return res.status(400).json({
-                error: "No puedes borrar este estado: Hay registros usándolo.",
-                frase: obtenerFraseAleatoria()
-            });
-        }
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
+const deleteEstado = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const estadoBorrado = await catalogoService.deleteEstado(id);
+    if (!estadoBorrado) throw new AppError("Ese estado no existe.", 404);
+    res.json({ mensaje: "Estado eliminado del catálogo.", datos: estadoBorrado });
+});
 
-const updateEstado = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { estado } = req.body;
-        if (!estado) return res.status(400).json({ error: 'Falta el nombre del estado.' });
-        const updated = await catalogoService.updateEstado(id, estado);
-        if (!updated) return res.status(404).json({ error: 'Estado no encontrado.' });
-        res.json(updated);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
+const updateEstado = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { estado } = req.body;
+    if (!estado) throw new AppError("Falta el nombre del estado.");
+    const updated = await catalogoService.updateEstado(id, estado);
+    if (!updated) throw new AppError("Estado no encontrado.", 404);
+    res.json(updated);
+});
 
 // --- TIPOS DE AUSENCIA ---
-const createTipoAusencia = async (req, res) => {
-    try {
-        const { tipo_id, descripcion, requiere_aprobacion } = req.body;
-        if (!descripcion) {
-            return res.status(400).json({ error: "El tipo de ausencia necesita una descripción." });
-        }
-        const nuevoTipo = await catalogoService.createTipoAusencia(tipo_id, descripcion, requiere_aprobacion);
-        res.status(201).json(nuevoTipo);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
+const createTipoAusencia = asyncHandler(async (req, res) => {
+    const { tipo_id, descripcion, requiere_aprobacion } = req.body;
+    if (!descripcion) throw new AppError("El tipo de ausencia necesita una descripción.");
+    const nuevoTipo = await catalogoService.createTipoAusencia(tipo_id, descripcion, requiere_aprobacion);
+    res.status(201).json(nuevoTipo);
+});
 
-const deleteTipoAusencia = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const tipoBorrado = await catalogoService.deleteTipoAusencia(id);
-        if (!tipoBorrado) {
-            return res.status(404).json({ error: "Ese tipo de ausencia no existe." });
-        }
-        res.json({ mensaje: "Tipo de ausencia eliminado.", datos: tipoBorrado });
-    } catch (error) {
-        console.error(error);
-        if (error.code === '23503') {
-            return res.status(400).json({
-                error: "No puedes borrar este tipo: Hay ausencias registradas con él.",
-                frase: obtenerFraseAleatoria()
-            });
-        }
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
+const deleteTipoAusencia = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const tipoBorrado = await catalogoService.deleteTipoAusencia(id);
+    if (!tipoBorrado) throw new AppError("Ese tipo de ausencia no existe.", 404);
+    res.json({ mensaje: "Tipo de ausencia eliminado.", datos: tipoBorrado });
+});
 
-const updateTipoAusencia = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { descripcion, requiere_aprobacion } = req.body;
-        const updated = await catalogoService.updateTipoAusencia(id, descripcion, requiere_aprobacion);
-        if (!updated) return res.status(404).json({ error: 'Tipo de ausencia no encontrado.' });
-        res.json(updated);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
+const updateTipoAusencia = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { descripcion, requiere_aprobacion } = req.body;
+    const updated = await catalogoService.updateTipoAusencia(id, descripcion, requiere_aprobacion);
+    if (!updated) throw new AppError("Tipo de ausencia no encontrado.", 404);
+    res.json(updated);
+});
 
 module.exports = {
     getRoles,

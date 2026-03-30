@@ -30,18 +30,13 @@ interface AssignedShift {
   source: 'plan' | 'registro' | 'ausencia' | 'cobertura';
 }
 
-const getEstadoInfo = (estadoId: EstadoId) => {
-  switch (estadoId) {
-    case 1: return { label: 'Pendiente', color: 'text-amber-400', border: 'border-amber-500/60' };
-    case 2: return { label: 'Aprobado', color: 'text-emerald-400', border: 'border-emerald-500/60' };
-    case 3: return { label: 'Solicitud de Corrección', color: 'text-orange-400', border: 'border-orange-500/60' };
-    case 4: return { label: 'En Revisión', color: 'text-sky-400', border: 'border-sky-500/60' };
-    case 5: return { label: 'Rechazado', color: 'text-red-400', border: 'border-red-500/60' };
-    default: return { label: 'Desconocido', color: 'text-gray-400', border: 'border-gray-500/60' };
-  }
-};
-
 import { API_BASE } from '@/app/lib/api';
+import { getEstadoStyle } from '@/app/lib/constants';
+
+const getEstadoInfo = (estadoId: EstadoId) => {
+  const s = getEstadoStyle(estadoId);
+  return { label: s.label, color: s.color, border: s.border };
+};
 
 // Datos iniciales eliminados, ahora vienen de la BD
 // --- COMPONENTE DE ENTRADA DE HORA CON SUGERENCIAS ---

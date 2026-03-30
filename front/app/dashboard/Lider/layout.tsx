@@ -1,5 +1,5 @@
 import React from 'react';
-import Header from './Header';
+import Header from '../../components/UI/Header';
 import Square from "../../components/Backgrounds/Square";
 
 export default function LiderLayout({
@@ -20,7 +20,7 @@ export default function LiderLayout({
             </div>
 
             <div className="relative z-10 flex flex-col h-screen">
-                <Header />
+                <Header titulo="Panel del Líder" />
                 <main className="flex-1 overflow-auto p-4">
                     {children}
                 </main>

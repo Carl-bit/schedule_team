@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 interface Empleado {
-    asignacion_id: number;
+    asignacion_id: string;
     empleado_id: string;
     nombre_empleado: string;
     rol_trabajo: string;

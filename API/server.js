@@ -1,9 +1,9 @@
 const express = require('express');
-require('dotenv').config(); // 1. Configuración (siempre arriba)
+require('dotenv').config();
 const pool = require('./config/db');
 const cors = require('cors');
+const { globalErrorHandler } = require('./middleware/errorHandler');
 
-const { obtenerFraseAleatoria } = require('./utils/naas/naas');
 const app = express();
 const port = 3000;
 
@@ -12,17 +12,16 @@ const proyectoRoutes = require('./routes/proyecto.route');
 const horaRoutes = require('./routes/hora.route');
 const asignacionRoutes = require('./routes/asignaciones.route');
 const catalogoRoutes = require('./routes/catalogo.route');
-const ausenciaRoutes = require('./routes/ausencia.routes');
-const authRoutes = require('./routes/auth.routes');
+const ausenciaRoutes = require('./routes/ausencia.route');
+const authRoutes = require('./routes/auth.route');
 const planificacionRoutes = require('./routes/planificacion.route');
 const etiquetaRoutes = require('./routes/etiqueta.route');
 const solicitudRoutes = require('./routes/solicitud.route');
 
-app.use(express.json()); // Middleware para entender JSON (importante para el futuro)
+app.use(express.json());
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Permitir requests sin origin (server-to-server, como el rewrite de Next.js)
         if (!origin) return callback(null, true);
         const allowed = (process.env.CORS_ORIGIN || 'http://localhost:3001').split(',');
         if (allowed.includes('*') || allowed.includes(origin)) {
@@ -34,8 +33,7 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH']
 }));
 
-// USAR RUTAS:
-// Le decimos: "Todo lo que empiece con /api/empleados, manéjalo con empleadoRoutes"
+// Rutas
 app.use('/api/empleados', empleadoRoutes);
 app.use('/api/proyectos', proyectoRoutes);
 app.use('/api/hora', horaRoutes);
@@ -47,22 +45,21 @@ app.use('/api/planificacion', planificacionRoutes);
 app.use('/api/etiquetas', etiquetaRoutes);
 app.use('/api/solicitudes', solicitudRoutes);
 
-
 app.get('/', async (req, res) => {
     try {
-        // Le pedimos al "pool" que ejecute una consulta SQL simple
         const resultado = await pool.query('SELECT NOW()');
-
-        // Si funciona, enviamos la hora que nos dio la base de datos
         res.json({
-            mensaje: 'Tu no deberias estar aqui, pero al meno sabes que esto esta encendido',
+            mensaje: 'Tu no deberias estar aqui, pero al menos sabes que esto esta encendido',
             hora_servidor: resultado.rows[0].now
         });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: obtenerFraseAleatoria() });
+        res.status(500).json({ error: 'Error de conexión a la base de datos' });
     }
 });
+
+// Error handler global (debe ir después de todas las rutas)
+app.use(globalErrorHandler);
 
 app.listen(port, () => {
     console.log(`Servidor escuchando en http://localhost:${port}`);

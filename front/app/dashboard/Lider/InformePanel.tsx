@@ -4,13 +4,9 @@ import { FileBarChart, Calendar, Users, Clock, CalendarOff, Briefcase, ChevronLe
 import jsPDF from 'jspdf';
 
 import { API_BASE } from '@/app/lib/api';
+import { useUser } from '@/app/hooks/useUser';
 
-interface Empleado {
-    empleado_id: string;
-    nombre_empleado: string;
-    alias_empleado: string;
-    puesto_empleado: string;
-}
+import type { Empleado } from '@/app/types';
 
 interface InformeData {
     horasPlanificadas: number;
@@ -24,6 +20,7 @@ interface InformeData {
 }
 
 export default function InformePanel() {
+    const { user: currentUser } = useUser();
     const [empleados, setEmpleados] = useState<Empleado[]>([]);
     const [selectedEmpleado, setSelectedEmpleado] = useState('');
     const [filterStartDate, setFilterStartDate] = useState(() => {
@@ -265,8 +262,7 @@ export default function InformePanel() {
         if (!informeData || !selectedEmpleado) return;
         const empName = empleados.find(e => e.empleado_id === selectedEmpleado)?.nombre_empleado || 'Empleado';
         const empPuesto = empleados.find(e => e.empleado_id === selectedEmpleado)?.puesto_empleado || '';
-        const userData = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user_data') || '{}') : {};
-        const liderName = userData.nombre_empleado || 'Líder';
+        const liderName = currentUser?.nombre_empleado || 'Líder';
 
         const doc = new jsPDF();
         const pageW = doc.internal.pageSize.getWidth();

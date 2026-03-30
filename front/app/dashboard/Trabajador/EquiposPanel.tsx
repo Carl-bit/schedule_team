@@ -1,23 +1,11 @@
 import { useState, useEffect } from 'react';
 import ModalEquipoProyecto from './ModalEquipoProyecto';
 import { API_BASE } from '@/app/lib/api';
+import { useUser } from '@/app/hooks/useUser';
+import type { Asignacion } from '@/app/types';
 
-// Interfaz para la respuesta cruda de la API
-interface AsignacionApi {
-    asignacion_id: number;
-    empleado_id: string;
-    nombre_empleado: string;
-    proyecto_id: string;
-    nombre_proyecto: string;
-    cliente: string | null;
-    fecha_inicio: string | null;
-    fecha_entrega: string | null;
-    rol_trabajo: string;
-}
-
-// Interfaces agrupadas para la vista
-interface Empleado {
-    asignacion_id: number;
+interface EquipoMiembro {
+    asignacion_id: string;
     empleado_id: string;
     nombre_empleado: string;
     rol_trabajo: string;
@@ -29,32 +17,28 @@ interface ProyectoGroup {
     cliente: string | null;
     fecha_inicio: string | null;
     fecha_entrega: string | null;
-    equipo: Empleado[];
+    equipo: EquipoMiembro[];
 }
 
 export default function EquiposPanel() {
+    const { user } = useUser();
     const [proyectosAgrupados, setProyectosAgrupados] = useState<ProyectoGroup[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const [proyectoSeleccionado, setProyectoSeleccionado] = useState<ProyectoGroup | null>(null);
 
     useEffect(() => {
+        if (!user) return;
+
         const fetchEquipos = async () => {
             try {
                 setIsLoading(true);
-
-                // 1. Obtener ID del usuario loggeado desde LocalStorage
-                const storedData = localStorage.getItem('user_data');
-                if (!storedData) {
-                    throw new Error('No se encontró información del usuario en sesión.');
-                }
-                const userData = JSON.parse(storedData);
-                const currentUserId = userData.empleado_id;
+                const currentUserId = user.empleado_id;
 
                 // 2. Traer todas las asignaciones
                 const response = await fetch(`${API_BASE}/asignaciones`);
                 if (!response.ok) throw new Error('Error al cargar los equipos');
-                const data: AsignacionApi[] = await response.json();
+                const data: Asignacion[] = await response.json();
 
                 // 3. Agrupar por Proyecto
                 const mapProyectos = new Map<string, ProyectoGroup>();
@@ -96,7 +80,7 @@ export default function EquiposPanel() {
         };
 
         fetchEquipos();
-    }, []);
+    }, [user]);
 
     // Formatear Fecha
     const formatearFecha = (fechaStr: string | null) => {

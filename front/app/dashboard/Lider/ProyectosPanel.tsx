@@ -3,34 +3,7 @@ import { useState, useEffect } from 'react';
 import { Briefcase, Plus, Edit3, Trash2, Users, Search, Loader2, X, ChevronDown, ChevronUp, UserPlus, UserMinus, RefreshCw } from 'lucide-react';
 
 import { API_BASE } from '@/app/lib/api';
-
-interface Proyecto {
-    proyecto_id: string;
-    nombre_proyecto: string;
-    cliente: string;
-    fecha_inicio: string;
-    fecha_entrega: string | null;
-}
-
-interface Asignacion {
-    asignacion_id: string;
-    empleado_id: string;
-    nombre_empleado: string;
-    proyecto_id: string;
-    nombre_proyecto: string;
-    rol_trabajo: string;
-}
-
-interface Empleado {
-    empleado_id: string;
-    nombre_empleado: string;
-    alias_empleado: string;
-}
-
-interface Rol {
-    rol_trabajo_id: string;
-    rol_trabajo: string;
-}
+import type { Proyecto, Asignacion, Empleado, Rol } from '@/app/types';
 
 export default function ProyectosPanel() {
     const [proyectos, setProyectos] = useState<Proyecto[]>([]);

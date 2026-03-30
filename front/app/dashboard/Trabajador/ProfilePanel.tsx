@@ -1,9 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
-// 1. Importamos el componente que acabamos de crear
 import ContentProfile from './ContentProfile';
 
 import { API_BASE } from '@/app/lib/api';
+import { useUser } from '@/app/hooks/useUser';
 
 interface MenuItemProps {
     icon: string;
@@ -13,6 +13,7 @@ interface MenuItemProps {
 }
 
 export default function ProfilePanel({ setVista }: { setVista: (vista: 'calendar' | 'equipos' | 'solicitudes' | 'resume') => void }) {
+    const { user } = useUser();
     const [badgeEquipos, setBadgeEquipos] = useState(0);
     const [badgeHoras, setBadgeHoras] = useState(0);
     const [badgeAusencias, setBadgeAusencias] = useState(0);
@@ -20,10 +21,8 @@ export default function ProfilePanel({ setVista }: { setVista: (vista: 'calendar
     useEffect(() => {
         const fetchBadges = async () => {
             try {
-                const storedData = localStorage.getItem('user_data');
-                if (!storedData) return;
-                const userData = JSON.parse(storedData);
-                const userId = userData.empleado_id;
+                if (!user) return;
+                const userId = user.empleado_id;
                 const timestamp = Date.now();
 
                 const [asignacionesRes, planRes, horasRes, ausenciasRes] = await Promise.all([
@@ -69,7 +68,7 @@ export default function ProfilePanel({ setVista }: { setVista: (vista: 'calendar
         };
 
         fetchBadges();
-    }, []);
+    }, [user]);
 
     return (
         <aside className="w-80 flex flex-col gap-6 h-full transition-all duration-300">

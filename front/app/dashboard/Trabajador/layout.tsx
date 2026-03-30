@@ -1,5 +1,5 @@
-import React from 'react'; // <--- Importante para evitar dudas con los tipos
-import Header from '../Trabajador/Header';
+import React from 'react';
+import Header from '../../components/UI/Header';
 import Square from "../../components/Backgrounds/Square";
 
 export default function DashboardLayout({
@@ -23,7 +23,7 @@ export default function DashboardLayout({
             <div className="relative z-10 flex flex-col h-screen">
 
                 {/* 2.1 Header Superior */}
-                <Header />
+                <Header titulo="Bienvenido al Panel" />
 
                 {/* 2.2 Aquí se inyecta tu page.tsx (con tus 3 columnas) */}
                 <main className="flex-1 overflow-auto p-4">

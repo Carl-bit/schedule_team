@@ -3,8 +3,10 @@ import { useState, useEffect } from 'react';
 import { Users, Briefcase, AlertCircle, CheckCircle2, Loader2, Clock } from 'lucide-react';
 
 import { API_BASE } from '@/app/lib/api';
+import { useUser } from '@/app/hooks/useUser';
 
 export default function LiderResumePanel() {
+    const { user } = useUser();
     const [nombreUsuario, setNombreUsuario] = useState('');
     const [totalTrabajadores, setTotalTrabajadores] = useState(0);
     const [totalProyectos, setTotalProyectos] = useState(0);
@@ -17,10 +19,8 @@ export default function LiderResumePanel() {
         const fetchResumen = async () => {
             try {
                 setIsLoading(true);
-                const storedData = localStorage.getItem('user_data');
-                if (storedData) {
-                    const userData = JSON.parse(storedData);
-                    setNombreUsuario(userData.nombre_empleado?.split(' ')[0] || 'Líder');
+                if (user) {
+                    setNombreUsuario(user.nombre_empleado?.split(' ')[0] || 'Líder');
                 }
 
                 const timestamp = Date.now();
@@ -64,7 +64,7 @@ export default function LiderResumePanel() {
         };
 
         fetchResumen();
-    }, []);
+    }, [user]);
 
     if (isLoading) {
         return (

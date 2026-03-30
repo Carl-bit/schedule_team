@@ -1,50 +1,21 @@
-'use client'; // Importante porque usa hooks
-import { useState, useEffect } from 'react';
+'use client';
+import { useState } from 'react';
 import ReflectiveCard from '../../components/UI/ReflectiveCard';
 import ModalModificar from './ModalModificar';
+import { useUser } from '@/app/hooks/useUser';
 
 export default function ContentProfile() {
-    // 1. Nos traemos los estados que estaban en el otro archivo
     const [isExpanded, setIsExpanded] = useState(false);
     const [showModal, setShowModal] = useState(false);
-    const [user, setUser] = useState({
-        empleado_id: '',
-        nombre: 'Cargando...',
-        alias: '...',
-        rol: '...',
-        email: '...',
-        telefono: ''
-    });
+    const { user: userData, refresh: refrescarDatos } = useUser();
 
-    // 2. Nos traemos el efecto de carga de datos
-    useEffect(() => {
-        const storedData = localStorage.getItem('user_data');
-        if (storedData) {
-            const parsedData = JSON.parse(storedData);
-            setUser({
-                empleado_id: parsedData.empleado_id || '',
-                nombre: parsedData.nombre_empleado || 'Usuario',
-                alias: parsedData.alias_empleado || 'Alias',
-                rol: parsedData.puesto_empleado || 'Trabajador',
-                email: parsedData.correo_empleado || 'correo@ejemplo.com',
-                telefono: parsedData.telefono_empleado || '+56 9 ...'
-            });
-        }
-    }, []);
-
-    const refrescarDatos = () => {
-        const storedData = localStorage.getItem('user_data');
-        if (storedData) {
-            const parsedData = JSON.parse(storedData);
-            setUser({
-                empleado_id: parsedData.empleado_id || '',
-                nombre: parsedData.nombre_empleado || 'Usuario',
-                alias: parsedData.alias_empleado || 'Alias',
-                rol: parsedData.puesto_empleado || 'Trabajador',
-                email: parsedData.correo_empleado || 'correo@ejemplo.com',
-                telefono: parsedData.telefono_empleado || '+56 9 ...'
-            });
-        }
+    const user = {
+        empleado_id: userData?.empleado_id || '',
+        nombre: userData?.nombre_empleado || 'Usuario',
+        alias: userData?.alias_empleado || 'Alias',
+        rol: userData?.puesto_empleado || 'Trabajador',
+        email: userData?.correo_empleado || 'correo@ejemplo.com',
+        telefono: userData?.telefono_empleado || '+56 9 ...'
     };
 
     // 3. Renderizamos SOLO la tarjeta (con toda su lógica de expansión)

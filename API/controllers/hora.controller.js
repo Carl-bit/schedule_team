@@ -1,112 +1,55 @@
 const horaService = require('../services/hora.service');
-const { obtenerFraseAleatoria } = require('../utils/naas/naas');
+const { asyncHandler, AppError } = require('../middleware/errorHandler');
 
-const getHoras = async (req, res) => {
-    try {
-        const horas = await horaService.getHoras();
-        res.json(horas);
-    } catch (error) {
-        res.status(500).json({ error: obtenerFraseAleatoria() });
+const getHoras = asyncHandler(async (req, res) => {
+    const horas = await horaService.getHoras();
+    res.json(horas);
+});
+
+const getHorasByEmpleado = asyncHandler(async (req, res) => {
+    const { empleado_id } = req.params;
+    if (!empleado_id) throw new AppError("Falta el empleado_id.");
+    const horas = await horaService.getHorasByEmpleado(empleado_id);
+    res.json(horas);
+});
+
+const iniciarJornada = asyncHandler(async (req, res) => {
+    const { empleado_id } = req.body;
+
+    const turnoAbierto = await horaService.verificarSiTrabaja(empleado_id);
+    if (turnoAbierto) {
+        return res.status(409).json({
+            error: "¡Ya estás trabajando! Cierra tu turno anterior primero.",
+            turno_pendiente: turnoAbierto
+        });
     }
-};
 
-const getHorasByEmpleado = async (req, res) => {
-    try {
-        const { empleado_id } = req.params;
-        if (!empleado_id) {
-            return res.status(400).json({ error: "Falta el empleado_id" });
-        }
-        const horas = await horaService.getHorasByEmpleado(empleado_id);
-        res.json(horas);
-    } catch (error) {
-        console.error("Error obteniendo registro_horas:", error);
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
+    const nuevoRegistro = await horaService.iniciarJornada(empleado_id);
+    res.status(201).json(nuevoRegistro);
+});
 
-const iniciarJornada = async (req, res) => {
-    try {
-        const { empleado_id } = req.body;
+const terminarJornada = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const registroActualizado = await horaService.terminarJornada(id);
+    if (!registroActualizado) throw new AppError("Registro no encontrado.", 404);
+    res.json(registroActualizado);
+});
 
-        if (!empleado_id) {
-            return res.status(400).json({ error: "Falta el ID del empleado.", frase: obtenerFraseAleatoria() });
-        }
+const cerrarManual = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { fin_trabajo } = req.body;
+    if (!fin_trabajo) throw new AppError("Falta proporcionar la hora de cierre.");
+    const registroActualizado = await horaService.cerrarManual(id, fin_trabajo);
+    if (!registroActualizado) throw new AppError("Registro no encontrado.", 404);
+    res.json(registroActualizado);
+});
 
-        // 1. ANTES DE CREAR, VERIFICAMOS
-        const turnoAbierto = await horaService.verificarSiTrabaja(empleado_id);
-
-        if (turnoAbierto) {
-            return res.status(409).json({ // 409 = Conflict
-                error: "¡Ya estás trabajando! Cierra tu turno anterior primero.",
-                turno_pendiente: turnoAbierto,
-                frase: obtenerFraseAleatoria()
-            });
-        }
-
-        // 2. Si no está trabajando, lo dejamos entrar
-        const nuevoRegistro = await horaService.iniciarJornada(empleado_id);
-        res.status(201).json(nuevoRegistro);
-
-    } catch (error) {
-        console.error(error);
-        if (error.code === '23503') { // Error de llave foránea (usuario no existe)
-            return res.status(400).json({ error: "Empleado no encontrado.", frase: obtenerFraseAleatoria() });
-        }
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
-
-const terminarJornada = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const registroActualizado = await horaService.terminarJornada(id);
-
-        if (!registroActualizado) {
-            return res.status(404).json({ error: "Registro no encontrado.", frase: obtenerFraseAleatoria() });
-        }
-        res.json(registroActualizado);
-    } catch (error) {
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
-
-const cerrarManual = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { fin_trabajo } = req.body;
-
-        if (!fin_trabajo) {
-            return res.status(400).json({ error: "Falta proporcionar la hora de cierre.", frase: obtenerFraseAleatoria() });
-        }
-
-        const registroActualizado = await horaService.cerrarManual(id, fin_trabajo);
-
-        if (!registroActualizado) {
-            return res.status(404).json({ error: "Registro no encontrado.", frase: obtenerFraseAleatoria() });
-        }
-        res.json(registroActualizado);
-    } catch (error) {
-        console.error("Error cerrado manual:", error);
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
-
-// --- NUEVO: Eliminar registro ---
-const deleteHora = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const horaBorrada = await horaService.deleteHora(id);
-
-        if (!horaBorrada) {
-            return res.status(404).json({ error: "Ese registro no existe.", frase: obtenerFraseAleatoria() });
-        }
-        res.json({ mensaje: "Registro de hora eliminado (era un error, supongo).", datos: horaBorrada });
-
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: obtenerFraseAleatoria() });
-    }
-};
+const deleteHora = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const horaBorrada = await horaService.deleteHora(id);
+    if (!horaBorrada) throw new AppError("Ese registro no existe.", 404);
+    res.json({ mensaje: "Registro de hora eliminado.", datos: horaBorrada });
+});
 
 module.exports = {
     getHoras,
@@ -114,5 +57,5 @@ module.exports = {
     iniciarJornada,
     terminarJornada,
     cerrarManual,
-    deleteHora // Exportar
+    deleteHora
 };
