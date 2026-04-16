@@ -42,6 +42,7 @@ export interface Ausencia {
     inicio_ausencia: string;
     fin_ausencia: string;
     estado_id: number;
+    motivo_revision?: string | null;
 }
 
 export interface SolicitudCobertura {

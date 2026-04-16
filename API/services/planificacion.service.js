@@ -69,10 +69,10 @@ const savePlanificacionesBulk = async (empleado_id, turnos) => {
     }
 };
 
-// Actualizar el estado de una planificación (aprobar/rechazar)
-const updateEstadoPlanificacion = async (plan_id, estado_id) => {
-    const query = 'UPDATE planificacion_horaria SET estado_id = $1 WHERE plan_id = $2 RETURNING *';
-    const result = await pool.query(query, [estado_id, plan_id]);
+// Actualizar el estado de una planificación (aprobar/rechazar/corregir)
+const updateEstadoPlanificacion = async (plan_id, estado_id, motivo_revision = null) => {
+    const query = 'UPDATE planificacion_horaria SET estado_id = $1, motivo_revision = $2 WHERE plan_id = $3 RETURNING *';
+    const result = await pool.query(query, [estado_id, motivo_revision, plan_id]);
     return result.rows[0];
 };
 

@@ -27,9 +27,9 @@ const deleteAusencia = asyncHandler(async (req, res) => {
 
 const updateEstadoAusencia = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { estado_id } = req.body;
+    const { estado_id, motivo_revision } = req.body;
     if (!estado_id) throw new AppError("Falta el estado_id.");
-    const actualizado = await ausenciaService.updateEstadoAusencia(id, estado_id);
+    const actualizado = await ausenciaService.updateEstadoAusencia(id, estado_id, motivo_revision || null);
     if (!actualizado) throw new AppError("Ausencia no encontrada.", 404);
     res.json(actualizado);
 });

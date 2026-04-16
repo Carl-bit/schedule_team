@@ -51,11 +51,21 @@ const deleteHora = asyncHandler(async (req, res) => {
     res.json({ mensaje: "Registro de hora eliminado.", datos: horaBorrada });
 });
 
+const updateEstadoHora = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { estado_id, motivo_revision } = req.body;
+    if (!estado_id) throw new AppError("Falta el estado_id.");
+    const actualizado = await horaService.updateEstadoHora(id, estado_id, motivo_revision || null);
+    if (!actualizado) throw new AppError("Registro no encontrado.", 404);
+    res.json(actualizado);
+});
+
 module.exports = {
     getHoras,
     getHorasByEmpleado,
     iniciarJornada,
     terminarJornada,
     cerrarManual,
-    deleteHora
+    deleteHora,
+    updateEstadoHora
 };

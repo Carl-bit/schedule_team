@@ -7,7 +7,6 @@ import { API_BASE } from '@/app/lib/api';
 
 export default function LoginPage() {
     const router = useRouter();
-    console.log('Si estas debugeando, la contraseña de los usuarios de prueba es: hash_secreto_123 para el jefe y hash_secreto_456 para el trabajador'); 
 
     // Estados para guardar lo que escribe el usuario
     const [email, setEmail] = useState('');

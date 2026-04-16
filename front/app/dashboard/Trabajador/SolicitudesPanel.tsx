@@ -1,6 +1,6 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { Users, Clock, CheckCircle2, AlertCircle, XCircle, Briefcase, CalendarClock, Loader2, CalendarOff, ShieldCheck, ClipboardList, MessageSquare, Check, X } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Users, Clock, CheckCircle2, AlertCircle, XCircle, Briefcase, CalendarClock, Loader2, CalendarOff, ShieldCheck, ClipboardList, MessageSquare, Check, X, CalendarDays, Edit3, Send } from 'lucide-react';
 
 import { API_BASE } from '@/app/lib/api';
 import { useUser } from '@/app/hooks/useUser';
@@ -24,11 +24,12 @@ interface SolicitudHora {
     estado_id: number;
     horas: number;
     esDelLider: boolean;
+    motivo_revision?: string | null;
 }
 
 
 type TabActivo = 'coberturas' | 'equipos' | 'horas' | 'ausencias';
-type FiltroHoras = 'todos' | 'pendientes' | 'aprobadas' | 'mis_solicitudes' | 'del_lider';
+type FiltroHoras = 'todos' | 'pendientes' | 'aprobadas' | 'correccion' | 'rechazadas' | 'mis_solicitudes' | 'del_lider';
 type FiltroAusencias = 'todas' | 'pendientes' | 'aprobadas' | 'registros';
 
 export default function SolicitudesPanel() {
@@ -44,9 +45,14 @@ export default function SolicitudesPanel() {
     const [filtroAusencias, setFiltroAusencias] = useState<FiltroAusencias>('todas');
     const [actualizandoId, setActualizandoId] = useState<string | null>(null);
 
-    // Modal rechazo
+    // Modal rechazo cobertura
     const [rechazarSolicitud, setRechazarSolicitud] = useState<SolicitudCobertura | null>(null);
     const [motivoRechazoText, setMotivoRechazoText] = useState('');
+
+    // Modal correccion horas
+    const [corregirItem, setCorregirItem] = useState<SolicitudHora | null>(null);
+    const [corregirInicio, setCorregirInicio] = useState('');
+    const [corregirFin, setCorregirFin] = useState('');
 
     const getUserId = (): string | null => {
         return user?.empleado_id || null;
@@ -120,7 +126,8 @@ export default function SolicitudesPanel() {
                             fin: item.fin_turno,
                             estado_id: item.estado_id,
                             horas: Math.max(0, horas),
-                            esDelLider: !!esDelLider
+                            esDelLider: !!esDelLider,
+                            motivo_revision: item.motivo_revision
                         });
                     });
                 }
@@ -143,7 +150,8 @@ export default function SolicitudesPanel() {
                             fin: item.fin_trabajo,
                             estado_id: item.estado_id,
                             horas: Math.max(0, horas),
-                            esDelLider: false
+                            esDelLider: false,
+                            motivo_revision: item.motivo_revision
                         });
                     });
                 }
@@ -185,6 +193,8 @@ export default function SolicitudesPanel() {
     const solicitudesFiltradas = solicitudesHoras.filter(s => {
         if (filtroHoras === 'pendientes') return s.estado_id === 1;
         if (filtroHoras === 'aprobadas') return s.estado_id === 2;
+        if (filtroHoras === 'correccion') return s.estado_id === 3;
+        if (filtroHoras === 'rechazadas') return s.estado_id === 5;
         if (filtroHoras === 'mis_solicitudes') return s.estado_id === 1 && !s.esDelLider;
         if (filtroHoras === 'del_lider') return s.estado_id === 1 && s.esDelLider;
         return true;
@@ -199,6 +209,39 @@ export default function SolicitudesPanel() {
 
     const misSolicitudesCount = solicitudesHoras.filter(s => s.estado_id === 1 && !s.esDelLider).length;
     const delLiderCount = solicitudesHoras.filter(s => s.estado_id === 1 && s.esDelLider).length;
+
+    // Agrupar coberturas por fecha de llegada (created_at)
+    const coberturasAgrupadas = useMemo(() => {
+        const groups: Record<string, SolicitudCobertura[]> = {};
+        coberturas.forEach(c => {
+            const dateKey = new Date(c.created_at).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            if (!groups[dateKey]) groups[dateKey] = [];
+            groups[dateKey].push(c);
+        });
+        return Object.entries(groups);
+    }, [coberturas]);
+
+    // Agrupar horas filtradas por fecha
+    const horasAgrupadas = useMemo(() => {
+        const groups: Record<string, SolicitudHora[]> = {};
+        solicitudesFiltradas.forEach(s => {
+            const dateKey = new Date(s.inicio).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            if (!groups[dateKey]) groups[dateKey] = [];
+            groups[dateKey].push(s);
+        });
+        return Object.entries(groups);
+    }, [solicitudesFiltradas]);
+
+    // Agrupar ausencias filtradas por fecha
+    const ausenciasAgrupadas = useMemo(() => {
+        const groups: Record<string, Ausencia[]> = {};
+        ausenciasFiltradas.forEach(a => {
+            const dateKey = new Date(a.inicio_ausencia).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            if (!groups[dateKey]) groups[dateKey] = [];
+            groups[dateKey].push(a);
+        });
+        return Object.entries(groups);
+    }, [ausenciasFiltradas]);
 
     const pendientesHoras = solicitudesHoras.filter(s => s.estado_id === 1).length;
     const pendientesEquipo = proyectos.length;
@@ -259,6 +302,49 @@ export default function SolicitudesPanel() {
         } finally {
             setActualizandoId(null);
         }
+    };
+
+    // Enviar correccion (cambiar horas y reenviar con estado 4)
+    const enviarCorreccion = async () => {
+        if (!corregirItem || !corregirInicio || !corregirFin) return;
+        setActualizandoId(corregirItem.id);
+        try {
+            const isPlan = corregirItem.tipo === 'planificacion';
+            if (isPlan) {
+                // Actualizar turno planificado: reescribir inicio/fin + estado 4
+                const res = await fetch(`${API_BASE}/planificacion/${corregirItem.id}/estado`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ estado_id: 4, motivo_revision: null })
+                });
+                if (res.ok) {
+                    setSolicitudesHoras(prev => prev.map(s => s.id === corregirItem.id
+                        ? { ...s, estado_id: 4, motivo_revision: null, inicio: corregirInicio, fin: corregirFin }
+                        : s));
+                }
+            } else {
+                // Registro de horas: cerrar manual con nuevas horas + estado 4
+                const resClose = await fetch(`${API_BASE}/hora/${corregirItem.id}/cerrar`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fin_trabajo: corregirFin })
+                });
+                if (resClose.ok) {
+                    await fetch(`${API_BASE}/hora/${corregirItem.id}/estado`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ estado_id: 4, motivo_revision: null })
+                    });
+                    setSolicitudesHoras(prev => prev.map(s => s.id === corregirItem.id
+                        ? { ...s, estado_id: 4, motivo_revision: null, fin: corregirFin }
+                        : s));
+                }
+            }
+        } catch (err) {
+            console.error('Error enviando correccion:', err);
+        }
+        setActualizandoId(null);
+        setCorregirItem(null);
     };
 
     // --- Helpers ---
@@ -345,73 +431,83 @@ export default function SolicitudesPanel() {
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-1">
                 {/* ============ TAB COBERTURAS ============ */}
                 {tabActivo === 'coberturas' && (
-                    <div className="flex flex-col gap-3">
-                        {coberturas.length > 0 ? (
-                            coberturas.map((cob) => {
-                                const isPending = cob.estado === 'pendiente';
-                                const isAccepted = cob.estado === 'aceptada';
-                                const isRejected = cob.estado === 'rechazada';
-                                const dias = Math.max(1, Math.ceil((new Date(cob.fecha_fin).getTime() - new Date(cob.fecha_inicio).getTime()) / 86400000) + 1);
-
-                                return (
-                                    <div key={cob.solicitud_id}
-                                        className={`relative bg-[#1e2336]/80 backdrop-blur-md border p-4 rounded-2xl transition-all group overflow-hidden
-                                            ${isPending ? 'border-violet-500/30 hover:border-violet-500/50' : isAccepted ? 'border-[#3b4256]/50 hover:border-[#4f5872]' : 'border-red-500/30 hover:border-red-500/50'}`}>
-                                        <span className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl
-                                            ${isPending ? 'bg-violet-500' : isAccepted ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
-                                        <div className="flex items-center gap-4 pl-2">
-                                            <div className={`p-2.5 rounded-xl shrink-0 ${isPending ? 'bg-violet-500/10 text-violet-400' : isAccepted ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-                                                <ClipboardList className="w-5 h-5" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <h4 className="font-bold text-sm text-white">{cob.motivo}</h4>
-                                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">COBERTURA</span>
-                                                </div>
-                                                <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-400">
-                                                    <span>Solicitado por <strong className="text-indigo-300">{cob.nombre_lider}</strong></span>
-                                                    <span>{formatearFechaCorta(cob.fecha_inicio)} — {formatearFechaCorta(cob.fecha_fin)}</span>
-                                                    <span className="text-indigo-300 font-medium">{dias} día{dias > 1 ? 's' : ''}</span>
-                                                </div>
-                                                {cob.descripcion && <p className="text-[10px] text-gray-500 mt-0.5">{cob.descripcion}</p>}
-                                                {isRejected && cob.motivo_rechazo && (
-                                                    <p className="text-[10px] text-red-400/70 mt-1 flex items-center gap-1">
-                                                        <MessageSquare className="w-2.5 h-2.5" /> Tu motivo: "{cob.motivo_rechazo}"
-                                                    </p>
-                                                )}
-                                            </div>
-                                            <div className="flex items-center gap-2 shrink-0">
-                                                {isPending ? (
-                                                    <>
-                                                        <button onClick={() => aceptarCobertura(cob.solicitud_id)} disabled={actualizandoId === cob.solicitud_id}
-                                                            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer disabled:opacity-50">
-                                                            {actualizandoId === cob.solicitud_id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                                                            Aceptar
-                                                        </button>
-                                                        <button onClick={() => { setRechazarSolicitud(cob); setMotivoRechazoText(''); }} disabled={actualizandoId === cob.solicitud_id}
-                                                            className="flex items-center gap-1.5 bg-red-600/80 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer disabled:opacity-50">
-                                                            <X className="w-3 h-3" /> Rechazar
-                                                        </button>
-                                                    </>
-                                                ) : isAccepted ? (
-                                                    <div className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-2.5 py-1.5 rounded-full text-[10px] font-bold border border-emerald-500/20">
-                                                        <CheckCircle2 className="w-3 h-3" /> Aceptada
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex items-center gap-1.5 bg-red-500/10 text-red-400 px-2.5 py-1.5 rounded-full text-[10px] font-bold border border-red-500/20">
-                                                        <XCircle className="w-3 h-3" /> Rechazada
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
+                    <div className="flex flex-col gap-4">
+                        {coberturasAgrupadas.length > 0 ? (
+                            coberturasAgrupadas.map(([fechaLabel, items]) => (
+                                <div key={fechaLabel} className="flex flex-col gap-2">
+                                    <div className="flex items-center gap-2 px-1 pt-1">
+                                        <CalendarDays className="w-3.5 h-3.5 text-indigo-400" />
+                                        <span className="text-xs font-bold text-indigo-300 uppercase tracking-wider">{fechaLabel}</span>
+                                        <div className="flex-1 h-px bg-white/5"></div>
+                                        <span className="text-[10px] text-gray-500">{items.length} solicitud{items.length > 1 ? 'es' : ''}</span>
                                     </div>
-                                );
-                            })
+                                    {items.map((cob) => {
+                                        const isPending = cob.estado === 'pendiente';
+                                        const isAccepted = cob.estado === 'aceptada';
+                                        const isRejected = cob.estado === 'rechazada';
+                                        const dias = Math.max(1, Math.ceil((new Date(cob.fecha_fin).getTime() - new Date(cob.fecha_inicio).getTime()) / 86400000) + 1);
+
+                                        return (
+                                            <div key={cob.solicitud_id}
+                                                className={`relative bg-[#1e2336]/80 backdrop-blur-md border p-4 rounded-2xl transition-all group overflow-hidden
+                                                    ${isPending ? 'border-violet-500/30 hover:border-violet-500/50' : isAccepted ? 'border-[#3b4256]/50 hover:border-[#4f5872]' : 'border-red-500/30 hover:border-red-500/50'}`}>
+                                                <span className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl
+                                                    ${isPending ? 'bg-violet-500' : isAccepted ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+                                                <div className="flex items-center gap-4 pl-2">
+                                                    <div className={`p-2.5 rounded-xl shrink-0 ${isPending ? 'bg-violet-500/10 text-violet-400' : isAccepted ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                                                        <ClipboardList className="w-5 h-5" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <h4 className="font-bold text-sm text-white">{cob.motivo}</h4>
+                                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-400 border border-violet-500/20">COBERTURA</span>
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-400">
+                                                            <span>Solicitado por <strong className="text-indigo-300">{cob.nombre_lider}</strong></span>
+                                                            <span>{formatearFechaCorta(cob.fecha_inicio)} - {formatearFechaCorta(cob.fecha_fin)}</span>
+                                                            <span className="text-indigo-300 font-medium">{dias} dia{dias > 1 ? 's' : ''}</span>
+                                                        </div>
+                                                        {cob.descripcion && <p className="text-[10px] text-gray-500 mt-0.5">{cob.descripcion}</p>}
+                                                        {isRejected && cob.motivo_rechazo && (
+                                                            <p className="text-[10px] text-red-400/70 mt-1 flex items-center gap-1">
+                                                                <MessageSquare className="w-2.5 h-2.5" /> Tu motivo: &quot;{cob.motivo_rechazo}&quot;
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-2 shrink-0">
+                                                        {isPending ? (
+                                                            <>
+                                                                <button onClick={() => aceptarCobertura(cob.solicitud_id)} disabled={actualizandoId === cob.solicitud_id}
+                                                                    className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer disabled:opacity-50">
+                                                                    {actualizandoId === cob.solicitud_id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                                                                    Aceptar
+                                                                </button>
+                                                                <button onClick={() => { setRechazarSolicitud(cob); setMotivoRechazoText(''); }} disabled={actualizandoId === cob.solicitud_id}
+                                                                    className="flex items-center gap-1.5 bg-red-600/80 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer disabled:opacity-50">
+                                                                    <X className="w-3 h-3" /> Rechazar
+                                                                </button>
+                                                            </>
+                                                        ) : isAccepted ? (
+                                                            <div className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-2.5 py-1.5 rounded-full text-[10px] font-bold border border-emerald-500/20">
+                                                                <CheckCircle2 className="w-3 h-3" /> Aceptada
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center gap-1.5 bg-red-500/10 text-red-400 px-2.5 py-1.5 rounded-full text-[10px] font-bold border border-red-500/20">
+                                                                <XCircle className="w-3 h-3" /> Rechazada
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ))
                         ) : (
                             <div className="flex flex-col items-center justify-center py-16 text-center bg-white/5 rounded-2xl border border-white/10 border-dashed">
                                 <ClipboardList className="w-12 h-12 text-gray-600 mb-3" />
                                 <p className="text-gray-400 text-lg">No tienes solicitudes de cobertura.</p>
-                                <p className="text-gray-500 text-sm mt-1">Aquí aparecerán las peticiones de tu líder para cubrir posiciones.</p>
+                                <p className="text-gray-500 text-sm mt-1">Aqui apareceran las peticiones de tu lider para cubrir posiciones.</p>
                             </div>
                         )}
                     </div>
@@ -470,18 +566,26 @@ export default function SolicitudesPanel() {
                     /* ============ TAB HORAS ============ */
                     <div className="flex flex-col gap-3">
                         {/* Filtros rápidos */}
-                        <div className="grid grid-cols-3 gap-3 mb-2">
-                            <button onClick={() => setFiltroHoras('todos')} className={`p-3 rounded-xl border text-center transition-all cursor-pointer ${filtroHoras === 'todos' ? 'bg-indigo-600/20 border-indigo-500/50 ring-1 ring-indigo-500/30' : 'bg-[#1a1c24] border-gray-800/50 hover:border-gray-600/50 hover:bg-[#1e2028]'}`}>
+                        <div className="grid grid-cols-5 gap-2 mb-2">
+                            <button onClick={() => setFiltroHoras('todos')} className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${filtroHoras === 'todos' ? 'bg-indigo-600/20 border-indigo-500/50 ring-1 ring-indigo-500/30' : 'bg-[#1a1c24] border-gray-800/50 hover:border-gray-600/50 hover:bg-[#1e2028]'}`}>
                                 <p className={`text-[10px] font-bold uppercase mb-1 ${filtroHoras === 'todos' ? 'text-indigo-300' : 'text-gray-500'}`}>Total</p>
                                 <p className={`text-lg font-black ${filtroHoras === 'todos' ? 'text-indigo-200' : 'text-white'}`}>{solicitudesHoras.length}</p>
                             </button>
-                            <button onClick={() => setFiltroHoras('pendientes')} className={`p-3 rounded-xl border text-center transition-all cursor-pointer ${filtroHoras === 'pendientes' ? 'bg-amber-600/20 border-amber-500/50 ring-1 ring-amber-500/30' : 'bg-[#1a1c24] border-gray-800/50 hover:border-gray-600/50 hover:bg-[#1e2028]'}`}>
+                            <button onClick={() => setFiltroHoras('pendientes')} className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${filtroHoras === 'pendientes' ? 'bg-amber-600/20 border-amber-500/50 ring-1 ring-amber-500/30' : 'bg-[#1a1c24] border-gray-800/50 hover:border-gray-600/50 hover:bg-[#1e2028]'}`}>
                                 <p className={`text-[10px] font-bold uppercase mb-1 ${filtroHoras === 'pendientes' ? 'text-amber-300' : 'text-amber-500/80'}`}>Pendientes</p>
                                 <p className={`text-lg font-black ${filtroHoras === 'pendientes' ? 'text-amber-300' : 'text-amber-400'}`}>{pendientesHoras}</p>
                             </button>
-                            <button onClick={() => setFiltroHoras('aprobadas')} className={`p-3 rounded-xl border text-center transition-all cursor-pointer ${filtroHoras === 'aprobadas' ? 'bg-emerald-600/20 border-emerald-500/50 ring-1 ring-emerald-500/30' : 'bg-[#1a1c24] border-gray-800/50 hover:border-gray-600/50 hover:bg-[#1e2028]'}`}>
+                            <button onClick={() => setFiltroHoras('aprobadas')} className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${filtroHoras === 'aprobadas' ? 'bg-emerald-600/20 border-emerald-500/50 ring-1 ring-emerald-500/30' : 'bg-[#1a1c24] border-gray-800/50 hover:border-gray-600/50 hover:bg-[#1e2028]'}`}>
                                 <p className={`text-[10px] font-bold uppercase mb-1 ${filtroHoras === 'aprobadas' ? 'text-emerald-300' : 'text-emerald-500/80'}`}>Aprobadas</p>
                                 <p className={`text-lg font-black ${filtroHoras === 'aprobadas' ? 'text-emerald-300' : 'text-emerald-400'}`}>{solicitudesHoras.filter(s => s.estado_id === 2).length}</p>
+                            </button>
+                            <button onClick={() => setFiltroHoras('correccion')} className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${filtroHoras === 'correccion' ? 'bg-orange-600/20 border-orange-500/50 ring-1 ring-orange-500/30' : 'bg-[#1a1c24] border-gray-800/50 hover:border-gray-600/50 hover:bg-[#1e2028]'}`}>
+                                <p className={`text-[10px] font-bold uppercase mb-1 ${filtroHoras === 'correccion' ? 'text-orange-300' : 'text-orange-500/80'}`}>Revision</p>
+                                <p className={`text-lg font-black ${filtroHoras === 'correccion' ? 'text-orange-300' : 'text-orange-400'}`}>{solicitudesHoras.filter(s => s.estado_id === 3).length}</p>
+                            </button>
+                            <button onClick={() => setFiltroHoras('rechazadas')} className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${filtroHoras === 'rechazadas' ? 'bg-red-600/20 border-red-500/50 ring-1 ring-red-500/30' : 'bg-[#1a1c24] border-gray-800/50 hover:border-gray-600/50 hover:bg-[#1e2028]'}`}>
+                                <p className={`text-[10px] font-bold uppercase mb-1 ${filtroHoras === 'rechazadas' ? 'text-red-300' : 'text-red-500/80'}`}>Rechazadas</p>
+                                <p className={`text-lg font-black ${filtroHoras === 'rechazadas' ? 'text-red-300' : 'text-red-400'}`}>{solicitudesHoras.filter(s => s.estado_id === 5).length}</p>
                             </button>
                         </div>
 
@@ -499,9 +603,16 @@ export default function SolicitudesPanel() {
                             </button>
                         </div>
 
-                        {solicitudesFiltradas.length > 0 ? (
-                            solicitudesFiltradas.map((solicitud) => {
-                                const isPending = solicitud.estado_id === 1;
+                        {horasAgrupadas.length > 0 ? (
+                            horasAgrupadas.map(([fechaLabel, items]) => (
+                                <div key={fechaLabel} className="flex flex-col gap-2">
+                                    <div className="flex items-center gap-2 px-1 pt-1">
+                                        <CalendarDays className="w-3.5 h-3.5 text-indigo-400" />
+                                        <span className="text-xs font-bold text-indigo-300 uppercase tracking-wider">{fechaLabel}</span>
+                                        <div className="flex-1 h-px bg-white/5"></div>
+                                        <span className="text-[10px] text-gray-500">{items.length}</span>
+                                    </div>
+                                    {items.map((solicitud) => {
                                 const isPlan = solicitud.tipo === 'planificacion';
 
                                 return (
@@ -540,7 +651,12 @@ export default function SolicitudesPanel() {
                                                     <span className="text-indigo-300 font-medium">{solicitud.horas.toFixed(1).replace(/\.0$/, '')}h</span>
                                                 </div>
                                                 {solicitud.esDelLider && (
-                                                    <span className="text-[10px] text-violet-400 font-medium mt-0.5 inline-block">Asignado por líder</span>
+                                                    <span className="text-[10px] text-violet-400 font-medium mt-0.5 inline-block">Asignado por lider</span>
+                                                )}
+                                                {solicitud.estado_id === 3 && solicitud.motivo_revision && (
+                                                    <p className="text-[10px] text-orange-400/80 mt-1 flex items-center gap-1">
+                                                        <MessageSquare className="w-2.5 h-2.5 shrink-0" /> &quot;{solicitud.motivo_revision}&quot;
+                                                    </p>
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-2 shrink-0">
@@ -569,9 +685,15 @@ export default function SolicitudesPanel() {
                                                         Aprobado
                                                     </div>
                                                 ) : solicitud.estado_id === 3 ? (
-                                                    <div className="flex items-center gap-1.5 bg-orange-500/10 text-orange-400 px-2.5 py-1.5 rounded-full text-[10px] font-bold border border-orange-500/20">
-                                                        <AlertCircle className="w-3 h-3" />
-                                                        Corrección
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-1.5 bg-orange-500/10 text-orange-400 px-2.5 py-1.5 rounded-full text-[10px] font-bold border border-orange-500/20">
+                                                            <AlertCircle className="w-3 h-3" />
+                                                            Correccion
+                                                        </div>
+                                                        <button onClick={() => { setCorregirItem(solicitud); setCorregirInicio(solicitud.inicio); setCorregirFin(solicitud.fin || ''); }}
+                                                            className="flex items-center gap-1.5 bg-orange-600 hover:bg-orange-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer">
+                                                            <Edit3 className="w-3 h-3" /> Corregir
+                                                        </button>
                                                     </div>
                                                 ) : solicitud.estado_id === 4 ? (
                                                     <div className="flex items-center gap-1.5 bg-sky-500/10 text-sky-400 px-2.5 py-1.5 rounded-full text-[10px] font-bold border border-sky-500/20">
@@ -588,7 +710,9 @@ export default function SolicitudesPanel() {
                                         </div>
                                     </div>
                                 );
-                            })
+                            })}
+                                </div>
+                            ))
                         ) : (
                             <div className="flex flex-col items-center justify-center py-16 text-center bg-white/5 rounded-2xl border border-white/10 border-dashed">
                                 <Clock className="w-12 h-12 text-gray-600 mb-3" />
@@ -621,8 +745,16 @@ export default function SolicitudesPanel() {
                             </button>
                         </div>
 
-                        {ausenciasFiltradas.length > 0 ? (
-                            ausenciasFiltradas.map((aus) => {
+                        {ausenciasAgrupadas.length > 0 ? (
+                            ausenciasAgrupadas.map(([fechaLabel, ausItems]) => (
+                                <div key={fechaLabel} className="flex flex-col gap-2">
+                                    <div className="flex items-center gap-2 px-1 pt-1">
+                                        <CalendarDays className="w-3.5 h-3.5 text-indigo-400" />
+                                        <span className="text-xs font-bold text-indigo-300 uppercase tracking-wider">{fechaLabel}</span>
+                                        <div className="flex-1 h-px bg-white/5"></div>
+                                        <span className="text-[10px] text-gray-500">{ausItems.length}</span>
+                                    </div>
+                                    {ausItems.map((aus) => {
                                 const isPending = aus.requiere_aprobacion && aus.estado_id === 1;
                                 const isApproved = aus.estado_id === 2;
                                 const isRegistro = !aus.requiere_aprobacion;
@@ -674,7 +806,12 @@ export default function SolicitudesPanel() {
                                                     <span className="text-indigo-300 font-medium">{dias} día{dias > 1 ? 's' : ''}</span>
                                                 </div>
                                                 {isRegistro && (
-                                                    <span className="text-[10px] text-sky-400/70 mt-0.5 inline-block">No requiere aprobación</span>
+                                                    <span className="text-[10px] text-sky-400/70 mt-0.5 inline-block">No requiere aprobacion</span>
+                                                )}
+                                                {aus.estado_id === 3 && aus.motivo_revision && (
+                                                    <p className="text-[10px] text-orange-400/80 mt-1 flex items-center gap-1">
+                                                        <MessageSquare className="w-2.5 h-2.5 shrink-0" /> &quot;{aus.motivo_revision}&quot;
+                                                    </p>
                                                 )}
                                             </div>
 
@@ -709,12 +846,14 @@ export default function SolicitudesPanel() {
                                         </div>
                                     </div>
                                 );
-                            })
+                            })}
+                                </div>
+                            ))
                         ) : (
                             <div className="flex flex-col items-center justify-center py-16 text-center bg-white/5 rounded-2xl border border-white/10 border-dashed">
                                 <CalendarOff className="w-12 h-12 text-gray-600 mb-3" />
                                 <p className="text-gray-400 text-lg">No tienes ausencias registradas.</p>
-                                <p className="text-gray-500 text-sm mt-1">Aquí aparecerán tus vacaciones, licencias y días administrativos.</p>
+                                <p className="text-gray-500 text-sm mt-1">Aqui apareceran tus vacaciones, licencias y dias administrativos.</p>
                             </div>
                         )}
                     </div>
@@ -745,6 +884,48 @@ export default function SolicitudesPanel() {
                                 className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer disabled:opacity-50">
                                 {actualizandoId === rechazarSolicitud.solicitud_id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                                 Confirmar Rechazo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Correccion de Horas */}
+            {corregirItem && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setCorregirItem(null)}>
+                    <div className="bg-[#1e2336] rounded-2xl border border-[#3b4256] p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-1">
+                            <Edit3 className="w-5 h-5 text-orange-400" />
+                            Corregir {corregirItem.tipo === 'planificacion' ? 'Turno' : 'Registro'}
+                        </h3>
+                        {corregirItem.motivo_revision && (
+                            <div className="p-3 bg-orange-500/10 border border-orange-500/30 rounded-lg mb-4">
+                                <p className="text-[10px] text-orange-400 uppercase tracking-wider font-bold mb-1">Motivo del lider</p>
+                                <p className="text-sm text-orange-200">&quot;{corregirItem.motivo_revision}&quot;</p>
+                            </div>
+                        )}
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                            <div>
+                                <label className="block text-xs text-gray-400 uppercase tracking-wider font-bold mb-1">Inicio</label>
+                                <input type="datetime-local" value={corregirInicio.replace('Z', '').slice(0, 16)}
+                                    onChange={e => setCorregirInicio(e.target.value)}
+                                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500 transition-colors" />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-gray-400 uppercase tracking-wider font-bold mb-1">Fin</label>
+                                <input type="datetime-local" value={(corregirFin || '').replace('Z', '').slice(0, 16)}
+                                    onChange={e => setCorregirFin(e.target.value)}
+                                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500 transition-colors" />
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={() => setCorregirItem(null)} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-600 text-gray-400 hover:text-white hover:border-gray-500 transition-colors text-sm cursor-pointer">
+                                Cancelar
+                            </button>
+                            <button onClick={enviarCorreccion} disabled={!corregirInicio || !corregirFin || actualizandoId === corregirItem.id}
+                                className="flex-1 flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer disabled:opacity-50">
+                                {actualizandoId === corregirItem.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                                Enviar Correccion
                             </button>
                         </div>
                     </div>

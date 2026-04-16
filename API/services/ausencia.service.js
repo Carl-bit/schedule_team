@@ -13,7 +13,8 @@ const getAusencias = async () => {
             c.requiere_aprobacion,
             a.inicio_ausencia,
             a.fin_ausencia,
-            a.estado_id
+            a.estado_id,
+            a.motivo_revision
         FROM ausencias a
         JOIN empleados e ON a.empleado_id = e.empleado_id
         JOIN catalogo_ausencias c ON a.tipo_ausencia_id = c.tipo_id
@@ -34,7 +35,8 @@ const getAusenciasByEmpleado = async (empleado_id) => {
             c.requiere_aprobacion,
             a.inicio_ausencia,
             a.fin_ausencia,
-            a.estado_id
+            a.estado_id,
+            a.motivo_revision
         FROM ausencias a
         JOIN catalogo_ausencias c ON a.tipo_ausencia_id = c.tipo_id
         WHERE a.empleado_id = $1
@@ -73,10 +75,10 @@ const deleteAusencia = async (id) => {
     return result.rows[0];
 };
 
-// 5. Actualizar estado de una ausencia (aprobar/rechazar)
-const updateEstadoAusencia = async (ausencia_id, estado_id) => {
-    const query = 'UPDATE ausencias SET estado_id = $1 WHERE ausencia_id = $2 RETURNING *';
-    const result = await pool.query(query, [estado_id, ausencia_id]);
+// 5. Actualizar estado de una ausencia (aprobar/rechazar/corregir)
+const updateEstadoAusencia = async (ausencia_id, estado_id, motivo_revision = null) => {
+    const query = 'UPDATE ausencias SET estado_id = $1, motivo_revision = $2 WHERE ausencia_id = $3 RETURNING *';
+    const result = await pool.query(query, [estado_id, motivo_revision, ausencia_id]);
     return result.rows[0];
 };
 

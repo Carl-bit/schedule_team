@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { ClipboardList, Clock, CalendarPlus, History, Check, X, Loader2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Filter, RefreshCw, MessageSquare, UserPlus, Briefcase, CalendarOff, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 import { API_BASE } from '@/app/lib/api';
@@ -26,7 +27,7 @@ const estadoIdInfo = (id: number) => {
 };
 
 // =========== Crear Solicitud (Cobertura) subcomponent ===========
-function CrearSolicitudTab({ empleados, onCreated }: { empleados: Empleado[]; onCreated: () => void }) {
+function CrearSolicitudTab({ empleados, onCreated, onNotify }: { empleados: Empleado[]; onCreated: () => void; onNotify: (message: string, type: 'success' | 'error') => void }) {
     const { user } = useUser();
     const [crearEmpleado, setCrearEmpleado] = useState('');
     const [crearMotivo, setCrearMotivo] = useState('');
@@ -34,7 +35,6 @@ function CrearSolicitudTab({ empleados, onCreated }: { empleados: Empleado[]; on
     const [crearInicio, setCrearInicio] = useState('');
     const [crearFin, setCrearFin] = useState('');
     const [crearError, setCrearError] = useState('');
-    const [crearSuccess, setCrearSuccess] = useState('');
     const [calMonth, setCalMonth] = useState(() => new Date().getMonth());
     const [calYear, setCalYear] = useState(() => new Date().getFullYear());
     const [rangeMode, setRangeMode] = useState<'start' | 'end'>('start');
@@ -86,16 +86,17 @@ function CrearSolicitudTab({ empleados, onCreated }: { empleados: Empleado[]; on
     const prevM = () => { if (calMonth === 0) { setCalMonth(11); setCalYear(calYear - 1); } else setCalMonth(calMonth - 1); };
     const nextM = () => { if (calMonth === 11) { setCalMonth(0); setCalYear(calYear + 1); } else setCalMonth(calMonth + 1); };
     const crearSolicitud = async () => {
-        setCrearError(''); setCrearSuccess('');
+        setCrearError('');
         if (!crearEmpleado || !crearMotivo || !crearInicio || !crearFin) { setCrearError('Todos los campos obligatorios deben llenarse'); return; }
         try {
             const res = await fetch(`${API_BASE}/solicitudes`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ empleado_id: crearEmpleado, creado_por: user?.empleado_id, motivo: crearMotivo, descripcion: crearDescripcion || null, fecha_inicio: `${crearInicio}T00:00:00`, fecha_fin: `${crearFin}T23:59:59` }) });
             if (res.ok) {
-                setCrearSuccess('Solicitud de cobertura enviada'); setCrearEmpleado(''); setCrearMotivo(''); setCrearDescripcion(''); setCrearInicio(''); setCrearFin('');
-                onCreated(); setTimeout(() => setCrearSuccess(''), 3000);
-            } else { const d = await res.json(); setCrearError(d.error || 'Error al crear'); }
-        } catch { setCrearError('Error de conexión'); }
+                setCrearEmpleado(''); setCrearMotivo(''); setCrearDescripcion(''); setCrearInicio(''); setCrearFin('');
+                onCreated();
+                onNotify('Solicitud de cobertura enviada correctamente', 'success');
+            } else { const d = await res.json(); onNotify(d.error || 'Error al crear la solicitud', 'error'); }
+        } catch { onNotify('Error de conexion al crear la solicitud', 'error'); }
     };
     return (
         <div className="flex flex-col gap-4">
@@ -126,7 +127,6 @@ function CrearSolicitudTab({ empleados, onCreated }: { empleados: Empleado[]; on
                 <div className="grid grid-cols-2 gap-3">{renderCal(calMonth, calYear)}{renderCal(secondMonth, secondYear)}</div>
             </div>
             {crearError && <div className="p-2 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-xs text-center">{crearError}</div>}
-            {crearSuccess && <div className="p-2 bg-emerald-500/10 border border-emerald-500/50 rounded-lg text-emerald-400 text-xs text-center">{crearSuccess}</div>}
             <button onClick={crearSolicitud} className="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white px-5 py-3 rounded-xl font-bold text-sm shadow-lg shadow-indigo-600/20 transition-all cursor-pointer"><CalendarPlus className="w-4 h-4" /> Enviar Solicitud</button>
         </div>
     );
@@ -170,6 +170,14 @@ export default function SolicitudesLiderPanel() {
     const [loading, setLoading] = useState(true);
     const [reasignarSolicitud, setReasignarSolicitud] = useState<SolicitudCobertura | null>(null);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
+    const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+    const [rechazarItem, setRechazarItem] = useState<PendingItem | null>(null);
+    const [motivoRevision, setMotivoRevision] = useState('');
+
+    const showNotification = (message: string, type: 'success' | 'error') => {
+        setNotification({ message, type });
+        setTimeout(() => setNotification(null), 4000);
+    };
 
     const getLiderId = (): string => {
         return user?.empleado_id || '';
@@ -199,7 +207,7 @@ export default function SolicitudesLiderPanel() {
 
             // Planificaciones pendientes
             if (Array.isArray(planData)) {
-                planData.filter((p: any) => p.estado_id === 1).forEach((p: any) => {
+                planData.filter((p: any) => p.estado_id === 1 || p.estado_id === 4).forEach((p: any) => {
                     items.push({
                         id: p.plan_id, tipo: 'planificacion',
                         empleado_id: p.empleado_id,
@@ -212,7 +220,7 @@ export default function SolicitudesLiderPanel() {
 
             // Horas pendientes
             if (Array.isArray(horaData)) {
-                horaData.filter((h: any) => h.estado_id === 1).forEach((h: any) => {
+                horaData.filter((h: any) => h.estado_id === 1 || h.estado_id === 4).forEach((h: any) => {
                     items.push({
                         id: h.registro_id, tipo: 'hora',
                         empleado_id: h.empleado_id,
@@ -226,7 +234,7 @@ export default function SolicitudesLiderPanel() {
 
             // Ausencias pendientes (solo las que requieren aprobación)
             if (Array.isArray(ausData)) {
-                ausData.filter((a: any) => a.estado_id === 1 && a.requiere_aprobacion).forEach((a: any) => {
+                ausData.filter((a: any) => (a.estado_id === 1 || a.estado_id === 4) && a.requiere_aprobacion).forEach((a: any) => {
                     items.push({
                         id: a.ausencia_id, tipo: 'ausencia',
                         empleado_id: a.empleado_id,
@@ -243,23 +251,49 @@ export default function SolicitudesLiderPanel() {
         setLoading(false);
     };
 
-    useEffect(() => { fetchAll(); }, []);
+    useEffect(() => {
+        if (user?.empleado_id) fetchAll();
+    }, [user?.empleado_id]);
 
-    // Approve/Reject a pending item
-    const updateItemEstado = async (item: PendingItem, nuevoEstado: number) => {
+    const getItemUrl = (item: PendingItem) => {
+        if (item.tipo === 'planificacion') return `${API_BASE}/planificacion/${item.id}/estado`;
+        if (item.tipo === 'hora') return `${API_BASE}/hora/${item.id}/estado`;
+        return `${API_BASE}/ausencias/${item.id}/estado`;
+    };
+
+    const tipoNombre = (tipo: string) => tipo === 'planificacion' ? 'Planificacion' : tipo === 'hora' ? 'Hora' : 'Ausencia';
+
+    // Aprobar directamente
+    const aprobarItem = async (item: PendingItem) => {
         setUpdatingId(item.id);
         try {
-            let url = '';
-            if (item.tipo === 'planificacion') url = `${API_BASE}/planificacion/${item.id}/estado`;
-            else if (item.tipo === 'hora') url = `${API_BASE}/hora/${item.id}/estado`; // might not exist, handle below
-            else if (item.tipo === 'ausencia') url = `${API_BASE}/ausencias/${item.id}/estado`;
-
-            const res = await fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estado_id: nuevoEstado }) });
+            const res = await fetch(getItemUrl(item), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estado_id: 2, motivo_revision: null }) });
             if (res.ok) {
                 setPendingItems(prev => prev.filter(p => p.id !== item.id));
+                showNotification(`${tipoNombre(item.tipo)} de ${item.nombre_empleado} aprobada correctamente`, 'success');
+            } else {
+                showNotification('Error al aprobar la revision', 'error');
             }
-        } catch (err) { console.error('Error updating estado:', err); }
+        } catch (err) { console.error('Error aprobando:', err); showNotification('Error de conexion al aprobar', 'error'); }
         setUpdatingId(null);
+    };
+
+    // Solicitar correccion (estado 3) con motivo
+    const enviarCorreccion = async () => {
+        if (!rechazarItem || !motivoRevision.trim()) return;
+        setUpdatingId(rechazarItem.id);
+        try {
+            const res = await fetch(getItemUrl(rechazarItem), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estado_id: 3, motivo_revision: motivoRevision.trim() }) });
+            if (res.ok) {
+                setPendingItems(prev => prev.filter(p => p.id !== rechazarItem.id));
+                showNotification(`Solicitud de correccion enviada a ${rechazarItem.nombre_empleado}`, 'error');
+            } else {
+                showNotification('Error al enviar la solicitud de correccion', 'error');
+            }
+        } catch (err) { console.error('Error rechazando:', err); showNotification('Error de conexion', 'error'); }
+        setUpdatingId(null);
+        setRechazarItem(null);
+        setMotivoRevision('');
     };
 
     // Filtered items
@@ -396,6 +430,7 @@ export default function SolicitudesLiderPanel() {
                                                                     <div className="flex items-center gap-2">
                                                                         <p className="text-sm font-medium text-white">{item.detalle}</p>
                                                                         <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${tipoBadge(item.tipo)}`}>{tipoLabel(item.tipo)}</span>
+                                                                        {item.estado_id === 4 && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border bg-sky-500/10 text-sky-400 border-sky-500/20">CORREGIDO</span>}
                                                                     </div>
                                                                     <p className="text-[10px] text-gray-400">
                                                                         {formatDate(item.fecha)}
@@ -404,11 +439,11 @@ export default function SolicitudesLiderPanel() {
                                                                 </div>
                                                             </div>
                                                             <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                                                                <button onClick={() => updateItemEstado(item, 2)} disabled={updatingId === item.id}
+                                                                <button onClick={() => aprobarItem(item)} disabled={updatingId === item.id}
                                                                     className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors cursor-pointer disabled:opacity-50">
                                                                     {updatingId === item.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}Aprobar
                                                                 </button>
-                                                                <button onClick={() => updateItemEstado(item, 5)} disabled={updatingId === item.id}
+                                                                <button onClick={() => { setRechazarItem(item); setMotivoRevision(''); }} disabled={updatingId === item.id}
                                                                     className="flex items-center gap-1 bg-red-600/80 hover:bg-red-500 text-white px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors cursor-pointer disabled:opacity-50">
                                                                     <X className="w-3 h-3" />
                                                                 </button>
@@ -469,7 +504,7 @@ export default function SolicitudesLiderPanel() {
                     )}
 
                     {/* ========== TAB: CREAR ========== */}
-                    {activeTab === 'crear' && <CrearSolicitudTab empleados={empleados} onCreated={fetchAll} />}
+                    {activeTab === 'crear' && <CrearSolicitudTab empleados={empleados} onCreated={fetchAll} onNotify={showNotification} />}
 
                     {/* ========== TAB: HISTORIAL ========== */}
                     {activeTab === 'historial' && (
@@ -500,7 +535,58 @@ export default function SolicitudesLiderPanel() {
                 </>
             )}
 
-            {reasignarSolicitud && <ModalReasignar solicitud={reasignarSolicitud} empleados={empleados} onClose={() => setReasignarSolicitud(null)} onDone={() => { setReasignarSolicitud(null); fetchAll(); }} />}
+            {reasignarSolicitud && <ModalReasignar solicitud={reasignarSolicitud} empleados={empleados} onClose={() => setReasignarSolicitud(null)} onDone={() => { setReasignarSolicitud(null); fetchAll(); showNotification('Solicitud reasignada correctamente', 'success'); }} />}
+
+            {/* Modal solicitud de correccion */}
+            {rechazarItem && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100]" onClick={() => setRechazarItem(null)}>
+                    <div className="bg-[#1e2336] rounded-2xl border border-[#3b4256] p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-1">
+                            <MessageSquare className="w-5 h-5 text-orange-400" />
+                            Solicitar Correccion
+                        </h3>
+                        <p className="text-xs text-gray-400 mb-4">
+                            Indica al trabajador <strong className="text-white">{rechazarItem.nombre_empleado}</strong> que debe corregir este registro.
+                            El trabajador podra ver tu comentario y reenviar la correccion.
+                        </p>
+                        <label className="block text-xs text-gray-400 uppercase tracking-wider font-bold mb-1">Motivo de la correccion *</label>
+                        <textarea value={motivoRevision} onChange={e => setMotivoRevision(e.target.value)}
+                            placeholder="Ej: Las horas registradas no coinciden con el turno asignado..."
+                            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500 transition-colors resize-none h-24 mb-4" />
+                        <div className="flex gap-2">
+                            <button onClick={() => setRechazarItem(null)} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-600 text-gray-400 hover:text-white hover:border-gray-500 transition-colors text-sm cursor-pointer">
+                                Cancelar
+                            </button>
+                            <button onClick={enviarCorreccion} disabled={!motivoRevision.trim() || updatingId === rechazarItem.id}
+                                className="flex-1 flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-all cursor-pointer disabled:opacity-50">
+                                {updatingId === rechazarItem.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
+                                Enviar Correccion
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Notificacion via portal para estar encima del header */}
+            {notification && typeof document !== 'undefined' && createPortal(
+                <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] animate-in fade-in slide-in-from-top-3 duration-300">
+                    <div className={`flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl border ${notification.type === 'success'
+                        ? 'bg-[#1a2e1f] border-emerald-500/40 text-emerald-400'
+                        : 'bg-[#2e1a1a] border-red-500/40 text-red-400'
+                        }`}>
+                        {notification.type === 'success' ? (
+                            <CheckCircle2 className="w-5 h-5" />
+                        ) : (
+                            <AlertCircle className="w-5 h-5" />
+                        )}
+                        <p className="font-bold text-sm text-white pr-2">{notification.message}</p>
+                        <button onClick={() => setNotification(null)} className="p-1 rounded-full hover:bg-white/10 transition-colors cursor-pointer ml-1">
+                            <X className="w-4 h-4 text-gray-300" />
+                        </button>
+                    </div>
+                </div>,
+                document.body
+            )}
         </div>
     );
 }

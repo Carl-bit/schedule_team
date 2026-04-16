@@ -59,12 +59,19 @@ const deleteHora = async (registro_id) => {
     return result.rows[0];
 };
 
+const updateEstadoHora = async (registro_id, estado_id, motivo_revision = null) => {
+    const query = 'UPDATE registro_horas SET estado_id = $1, motivo_revision = $2 WHERE registro_id = $3 RETURNING *';
+    const result = await pool.query(query, [estado_id, motivo_revision, registro_id]);
+    return result.rows[0];
+};
+
 module.exports = {
     getHoras,
     getHorasByEmpleado,
-    verificarSiTrabaja, // ¡Exportamos la nueva función!
+    verificarSiTrabaja,
     iniciarJornada,
     terminarJornada,
-    cerrarManual,       // Nueva función manual
-    deleteHora          // ¡Y esta también!
+    cerrarManual,
+    deleteHora,
+    updateEstadoHora
 };

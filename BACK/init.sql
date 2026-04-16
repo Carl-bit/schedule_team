@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS planificacion_horaria (
     fin_turno TIMESTAMP NOT NULL,
     estado_id INTEGER DEFAULT 1,
     creado_por VARCHAR(50),
+    motivo_revision TEXT,
     FOREIGN KEY (empleado_id) REFERENCES empleados(empleado_id),
     FOREIGN KEY (estado_id) REFERENCES catalogo_estado(estado_id),
     FOREIGN KEY (creado_por) REFERENCES empleados(empleado_id)
@@ -98,6 +99,7 @@ CREATE TABLE IF NOT EXISTS registro_horas (
     inicio_trabajo TIMESTAMP NOT NULL,
     fin_trabajo TIMESTAMP,
     estado_id INTEGER DEFAULT 1,
+    motivo_revision TEXT,
     FOREIGN KEY (empleado_id) REFERENCES empleados(empleado_id),
     FOREIGN KEY (estado_id) REFERENCES catalogo_estado(estado_id)
 );
@@ -109,6 +111,7 @@ CREATE TABLE IF NOT EXISTS ausencias (
     inicio_ausencia TIMESTAMP NOT NULL,
     fin_ausencia TIMESTAMP NOT NULL,
     estado_id INTEGER DEFAULT 1,
+    motivo_revision TEXT,
     FOREIGN KEY (empleado_id) REFERENCES empleados(empleado_id),
     FOREIGN KEY (tipo_ausencia_id) REFERENCES catalogo_ausencias(tipo_id),
     FOREIGN KEY (estado_id) REFERENCES catalogo_estado(estado_id)

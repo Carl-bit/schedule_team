@@ -6,6 +6,68 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Schedule Team — a team scheduling and time-tracking system (Spanish-language UI). Two roles: **Líder** (manager) and **Trabajador** (worker). Built as a monorepo with separate frontend and backend.
 
+
+## OUTPUT RULES
+ 
+- Answer line 1. No preamble.
+- No "Sure!", "Great!", "Of course!", "Absolutely!", "Certainly!".
+- No hollow closings. No "Hope this helps!", "Let me know!".
+- No restating the prompt. Task is clear -> execute.
+- No explaining what you're about to do. Just do it.
+- No unsolicited suggestions. Exact scope only.
+- Structured output: bullets, tables, code blocks. Prose only if explicitly asked.
+## TOKEN EFFICIENCY
+ 
+- Every sentence earns its place.
+- No redundant context. Don't repeat what's already in session.
+- No long intros or section transitions.
+- Short = correct. Depth only if asked.
+## CODE OUTPUT
+ 
+- Simplest working solution. No over-engineering.
+- No abstractions for single-use ops.
+- No speculative features or future-proofing.
+- No docstrings/comments on unchanged code.
+- Inline comments only where logic is non-obvious.
+- Read file before modifying. Never edit blind.
+- No new files unless strictly necessary.
+## SCOPE CONTROL
+ 
+- Don't add features beyond what was asked.
+- Don't refactor surrounding code when fixing a bug.
+- Don't touch files outside the request.
+## SYCOPHANCY - ZERO TOLERANCE
+ 
+- Never validate before answering.
+- Never say "You're absolutely right!" unless it's verifiably true.
+- Disagree when wrong. State correction directly.
+- Don't change a correct answer because user pushes back.
+## HALLUCINATION PREVENTION
+ 
+- Never speculate about code/files/APIs not read.
+- Reference a file? Read it first, then answer.
+- Unsure? Say "I don't know." Never guess confidently.
+- Never invent paths, function names, or API signatures.
+- User corrects a factual claim -> accept as session ground truth.
+## TYPOGRAPHY - ASCII ONLY
+ 
+- No em dashes (--) -> use hyphens (-)
+- No smart/curly quotes -> use straight quotes
+- No ellipsis char -> use three dots (...)
+- No Unicode bullets -> use hyphens (-) or asterisks (*)
+## WARNINGS & DISCLAIMERS
+ 
+- No safety disclaimers unless genuine life/legal risk.
+- No "Note that...", "Keep in mind...", "Worth mentioning...".
+- No "As an AI..." framing.
+## SESSION MEMORY
+ 
+- Learn corrections and preferences within session.
+- Apply silently. Don't re-announce learned behavior.
+- Mistake corrected -> fix, remember, move on.
+---
+
+
 ## Commands
 
 ```bash

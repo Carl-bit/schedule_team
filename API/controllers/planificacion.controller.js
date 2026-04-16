@@ -45,9 +45,9 @@ const savePlanificacionesBulk = asyncHandler(async (req, res) => {
 
 const updateEstadoPlanificacion = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { estado_id } = req.body;
+    const { estado_id, motivo_revision } = req.body;
     if (!estado_id) throw new AppError("Falta el estado_id.");
-    const actualizado = await planificacionService.updateEstadoPlanificacion(id, estado_id);
+    const actualizado = await planificacionService.updateEstadoPlanificacion(id, estado_id, motivo_revision || null);
     if (!actualizado) throw new AppError("Planificación no encontrada.", 404);
     res.json(actualizado);
 });

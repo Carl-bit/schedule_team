@@ -8,6 +8,7 @@ router.get('/:empleado_id', horaController.getHorasByEmpleado);
 router.post('/', validate(['empleado_id']), horaController.iniciarJornada);
 router.patch('/:id/terminar', horaController.terminarJornada);
 router.put('/:id/cerrar', horaController.cerrarManual);
+router.patch('/:id/estado', horaController.updateEstadoHora);
 router.delete('/:id', horaController.deleteHora);
 
 module.exports = router;
