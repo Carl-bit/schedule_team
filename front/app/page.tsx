@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation';
+import LandingClient from './LandingClient';
 
 export default function Home() {
-  redirect('/Login');
+  return <LandingClient />;
 }

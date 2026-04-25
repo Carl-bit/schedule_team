@@ -8,14 +8,9 @@ export default function LiderPage() {
     const [vista, setVista] = useState<'resume' | 'trabajadores' | 'proyectos' | 'catalogos' | 'solicitudes' | 'informe'>('resume');
 
     return (
-        <div className="relative min-h-screen text-white">
-            <div className={`relative z-10 p-6 ${styles.dashboardGrid}`}>
-                {/* Contenido principal (ocupa todo el espacio izquierdo) */}
-                <LiderContentController vista={vista} />
-
-                {/* Barra derecha: perfil + menú */}
-                <LiderProfilePanel setVista={setVista} vistaActual={vista} />
-            </div>
+        <div className={styles.dashboardGrid}>
+            <LiderContentController vista={vista} />
+            <LiderProfilePanel setVista={setVista} vistaActual={vista} />
         </div>
     );
 }

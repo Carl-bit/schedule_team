@@ -9,11 +9,13 @@ interface MenuItemProps {
     icon: string;
     label: string;
     onClick: () => void;
-    badges?: { count: number; color: string; label: string }[];
+    active?: boolean;
+    badges?: { count: number; bg: string; color: string; label: string }[];
 }
 
 export default function ProfilePanel({ setVista }: { setVista: (vista: 'calendar' | 'equipos' | 'solicitudes' | 'resume') => void }) {
     const { user } = useUser();
+    const [activeView, setActiveView] = useState<string>('resume');
     const [badgeEquipos, setBadgeEquipos] = useState(0);
     const [badgeHoras, setBadgeHoras] = useState(0);
     const [badgeAusencias, setBadgeAusencias] = useState(0);
@@ -32,7 +34,6 @@ export default function ProfilePanel({ setVista }: { setVista: (vista: 'calendar
                     fetch(`${API_BASE}/ausencias/${userId}?t=${timestamp}`)
                 ]);
 
-                // Equipos
                 if (asignacionesRes.ok) {
                     const data = await asignacionesRes.json();
                     const proyectos = new Set<string>();
@@ -42,7 +43,6 @@ export default function ProfilePanel({ setVista }: { setVista: (vista: 'calendar
                     setBadgeEquipos(proyectos.size);
                 }
 
-                // Horas pendientes
                 let horasPend = 0;
                 if (planRes.ok) {
                     const planData = await planRes.json();
@@ -54,7 +54,6 @@ export default function ProfilePanel({ setVista }: { setVista: (vista: 'calendar
                 }
                 setBadgeHoras(horasPend);
 
-                // Ausencias pendientes
                 if (ausenciasRes.ok) {
                     const ausData = await ausenciasRes.json();
                     if (Array.isArray(ausData)) {
@@ -70,74 +69,89 @@ export default function ProfilePanel({ setVista }: { setVista: (vista: 'calendar
         fetchBadges();
     }, [user]);
 
-    return (
-        <aside className="w-80 flex flex-col gap-6 h-full transition-all duration-300">
+    const handleClick = (v: 'calendar' | 'equipos' | 'solicitudes' | 'resume') => {
+        setVista(v);
+        setActiveView(v);
+    };
 
-            {/* 2. Aquí insertamos el componente hijo */}
+    return (
+        <aside className="flex flex-col h-full overflow-hidden"
+            style={{ background: 'var(--pr-bg-deep)', borderLeft: '1px solid var(--pr-bsub)' }}>
             <ContentProfile />
 
-            {/* 3. El menú se queda aquí porque es parte de la navegación del panel */}
-            <nav className="flex flex-col gap-3">
+            <nav className="py-2 flex-1 overflow-y-auto custom-scrollbar">
                 <MenuItem
-                    icon="home"
+                    icon="🏠"
                     label="Ver Resumen"
-                    onClick={() => setVista('resume')}
+                    active={activeView === 'resume'}
+                    onClick={() => handleClick('resume')}
                 />
                 <MenuItem
-                    icon="group"
+                    icon="👥"
                     label="Ver Equipos"
-                    onClick={() => setVista('equipos')}
+                    active={activeView === 'equipos'}
+                    onClick={() => handleClick('equipos')}
+                    badges={badgeEquipos > 0 ? [{ count: badgeEquipos, bg: 'rgba(124,58,237,0.2)', color: 'var(--pr-primary)', label: 'equipos' }] : []}
                 />
-
                 <MenuItem
-                    icon="calendar_month"
+                    icon="📅"
                     label="Ver Calendario"
-                    onClick={() => setVista('calendar')}
+                    active={activeView === 'calendar'}
+                    onClick={() => handleClick('calendar')}
                 />
-
                 <MenuItem
-                    icon="notifications"
+                    icon="🔔"
                     label="Ver Solicitudes"
-                    onClick={() => setVista('solicitudes')}
+                    active={activeView === 'solicitudes'}
+                    onClick={() => handleClick('solicitudes')}
                     badges={[
-                        ...(badgeEquipos > 0 ? [{ count: badgeEquipos, color: 'bg-indigo-500 shadow-indigo-500/30', label: 'equipos' }] : []),
-                        ...(badgeHoras > 0 ? [{ count: badgeHoras, color: 'bg-amber-500 shadow-amber-500/30', label: 'horas' }] : []),
-                        ...(badgeAusencias > 0 ? [{ count: badgeAusencias, color: 'bg-rose-500 shadow-rose-500/30', label: 'ausencias' }] : [])
+                        ...(badgeHoras > 0 ? [{ count: badgeHoras, bg: 'rgba(245,158,11,0.2)', color: 'var(--pr-warn)', label: 'horas' }] : []),
+                        ...(badgeAusencias > 0 ? [{ count: badgeAusencias, bg: 'rgba(239,68,68,0.2)', color: 'var(--pr-red)', label: 'ausencias' }] : [])
                     ]}
                 />
             </nav>
-
         </aside>
     );
 }
 
-// El componente MenuItem se queda aquí o puedes moverlo a /components/UI si quieres reutilizarlo en otros lados
-function MenuItem({ icon, label, onClick, badges = [] }: MenuItemProps) {
+function MenuItem({ icon, label, onClick, active = false, badges = [] }: MenuItemProps) {
     return (
         <button
             onClick={onClick}
-            className="group flex items-center justify-between w-full p-4 rounded-xl bg-gray-800/40 border border-white/5 hover:bg-blue-600/20 hover:border-blue-500/30 hover:scale-105 hover:origin-right hover:z-50 transition-all duration-200 text-left"
+            className="flex items-center gap-3 w-full px-5 py-4 text-left transition-colors text-base font-semibold border-none cursor-pointer"
+            style={{
+                background: active ? 'rgba(124,58,237,0.14)' : 'transparent',
+                color: active ? 'var(--pr-primary)' : 'var(--pr-fgm)',
+                fontFamily: "'Plus Jakarta Sans',sans-serif",
+            }}
+            onMouseEnter={(e) => {
+                if (!active) {
+                    e.currentTarget.style.background = 'rgba(124,58,237,0.08)';
+                    e.currentTarget.style.color = 'var(--pr-fg)';
+                }
+            }}
+            onMouseLeave={(e) => {
+                if (!active) {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = 'var(--pr-fgm)';
+                }
+            }}
         >
-            <div className="flex items-center gap-3">
-                <span className="material-icons text-gray-400 group-hover:text-cyan-400 transition-colors">
-                    {icon}
-                </span>
-                <span className="text-gray-300 font-medium group-hover:text-white transition-colors">
-                    {label}
-                </span>
-            </div>
+            <span className="w-5 text-center text-base flex-shrink-0">{icon}</span>
+            <span className="flex-1">{label}</span>
             {badges.length > 0 && (
-                <div className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1.5">
                     {badges.map((b, i) => (
                         <span
                             key={i}
                             title={b.label}
-                            className={`${b.color} text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-lg animate-pulse`}
+                            className="text-[11px] font-extrabold px-2 py-0.5 rounded-full"
+                            style={{ background: b.bg, color: b.color }}
                         >
                             {b.count}
                         </span>
                     ))}
-                </div>
+                </span>
             )}
         </button>
     );

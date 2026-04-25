@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Clock, CalendarClock, Users, AlertCircle, CheckCircle2, Briefcase, Loader2, CalendarOff, XCircle } from 'lucide-react';
+import { Clock, CalendarClock, AlertCircle, CheckCircle2, Briefcase, Loader2, CalendarOff, XCircle } from 'lucide-react';
 
 import { API_BASE } from '@/app/lib/api';
 import { useUser } from '@/app/hooks/useUser';
@@ -16,7 +16,6 @@ interface ProximoTurno {
     estadoId: number;
     esDelLider: boolean;
 }
-
 
 export default function ResumePanel() {
     const { user } = useUser();
@@ -42,10 +41,9 @@ export default function ResumePanel() {
                     fetch(`${API_BASE}/planificacion/${userId}?t=${timestamp}`),
                     fetch(`${API_BASE}/hora/${userId}?t=${timestamp}`),
                     fetch(`${API_BASE}/asignaciones`),
-                    fetch(`${API_BASE}/ausencias/${userId}?t=${timestamp}`)
+                    fetch(`${API_BASE}/ausencias/${userId}?t=${timestamp}`),
                 ]);
 
-                // --- Planificaciones ---
                 let plansPendientes = 0;
                 let plansAprobadas = 0;
                 const turnos: ProximoTurno[] = [];
@@ -63,7 +61,6 @@ export default function ResumePanel() {
                         if (item.estado_id === 1) plansPendientes++;
                         if (item.estado_id === 2) plansAprobadas++;
 
-                        // Solo turnos futuros o de hoy
                         const fechaTurno = new Date(item.inicio_turno);
                         fechaTurno.setHours(0, 0, 0, 0);
                         if (fechaTurno >= hoy) {
@@ -74,13 +71,12 @@ export default function ResumePanel() {
                                 fin: item.fin_turno,
                                 horas: Math.max(0, horas),
                                 estadoId: item.estado_id || 1,
-                                esDelLider: esDelLider
+                                esDelLider: esDelLider,
                             });
                         }
                     });
                 }
 
-                // --- Horas registradas pendientes ---
                 let horasPendientes = 0;
                 if (horasRes.ok) {
                     const horasData = await horasRes.json();
@@ -89,7 +85,6 @@ export default function ResumePanel() {
                     });
                 }
 
-                // --- Equipos del usuario ---
                 let equiposCount = 0;
                 if (asignacionesRes.ok) {
                     const asignaciones = await asignacionesRes.json();
@@ -102,7 +97,6 @@ export default function ResumePanel() {
                     equiposCount = proyectosSet.size;
                 }
 
-                // --- Ausencias (separadas de horas) ---
                 let ausPendientes = 0;
                 let ausTotal = 0;
                 if (ausenciasRes.ok) {
@@ -113,7 +107,6 @@ export default function ResumePanel() {
                     }
                 }
 
-                // Ordenar turnos por fecha
                 turnos.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
 
                 setPendientesHoras(plansPendientes + horasPendientes);
@@ -132,134 +125,120 @@ export default function ResumePanel() {
         fetchResumen();
     }, [user]);
 
-
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-full">
-                <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
+                <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--pr-primary)' }} />
             </div>
         );
     }
 
+    const STATS = [
+        {
+            label: 'Horas Pend.', val: pendientesHoras, sub: pendientesHoras > 0 ? 'planificaciones y registros' : 'al día',
+            color: 'var(--pr-warn)', bg: 'rgba(245,158,11,.06)', border: 'rgba(245,158,11,.3)', icon: '⏱',
+        },
+        {
+            label: 'Ausencias', val: totalAusencias, sub: pendientesAusencias > 0 ? `${pendientesAusencias} pendiente${pendientesAusencias > 1 ? 's' : ''}` : 'registradas',
+            color: 'var(--pr-red)', bg: 'rgba(239,68,68,.06)', border: 'rgba(239,68,68,.3)', icon: '🚫',
+        },
+        {
+            label: 'Equipos', val: pendientesEquipos, sub: 'proyectos',
+            color: 'var(--pr-primary)', bg: 'rgba(124,58,237,.06)', border: 'rgba(124,58,237,.3)', icon: '👥',
+        },
+        {
+            label: 'Aprobadas', val: totalAprobadas, sub: 'confirmadas',
+            color: 'var(--pr-success)', bg: 'rgba(16,185,129,.06)', border: 'rgba(16,185,129,.3)', icon: '✓',
+        },
+    ];
+
     return (
-        <div className="p-6 flex flex-col gap-6 h-full overflow-y-auto custom-scrollbar">
-            {/* Bienvenida */}
-            <div className="bg-gradient-to-r from-indigo-900/40 to-violet-900/40 p-6 rounded-2xl border border-white/10 backdrop-blur-md">
-                <h1 className="text-2xl font-bold text-white mb-1">¡Hola, {nombreUsuario}! 👋</h1>
-                <p className="text-gray-300 text-sm">Aquí tienes el resumen de tu actividad.</p>
+        <div className="h-full overflow-y-auto custom-scrollbar p-7" style={{ background: 'var(--pr-bg)' }}>
+            {/* Welcome banner */}
+            <div className="rounded-2xl p-6 mb-6 flex items-center gap-4"
+                style={{
+                    background: 'linear-gradient(135deg, rgba(124,58,237,.18) 0%, rgba(109,40,217,.08) 100%)',
+                    border: '1px solid rgba(124,58,237,.3)',
+                }}>
+                <div className="text-3xl">👋</div>
+                <div>
+                    <h1 className="text-2xl font-extrabold mb-1"
+                        style={{ color: 'var(--pr-fg)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+                        ¡Hola, {nombreUsuario}!
+                    </h1>
+                    <p className="text-sm" style={{ color: 'var(--pr-fgm)' }}>Aquí tienes el resumen de tu actividad.</p>
+                </div>
             </div>
 
             {/* Widgets */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {/* Horas Pendientes */}
-                <div className="bg-[#1e2336]/80 backdrop-blur-md p-5 rounded-2xl border border-[#3b4256]/50 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-amber-500/5 rounded-full blur-2xl pointer-events-none"></div>
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="bg-amber-500/10 p-2 rounded-lg">
-                            <Clock className="w-4 h-4 text-amber-400" />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                {STATS.map((s) => (
+                    <div key={s.label} className="rounded-2xl p-5 relative overflow-hidden"
+                        style={{ background: s.bg, border: `1px solid ${s.border}` }}>
+                        <div className="absolute top-0 right-0 w-16 h-16 rounded-full pointer-events-none"
+                            style={{ background: `${s.color}20`, filter: 'blur(30px)' }}></div>
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm mb-3"
+                            style={{ background: `${s.color}20`, color: s.color }}>
+                            {s.icon}
                         </div>
-                        <h3 className="text-gray-400 text-xs uppercase tracking-wider font-bold">Horas Pend.</h3>
-                    </div>
-                    <div className="flex items-end gap-2">
-                        <span className="text-3xl font-black text-amber-400">{pendientesHoras}</span>
-                        <span className="text-xs text-gray-500 mb-1">solicitudes</span>
-                    </div>
-                    {pendientesHoras > 0 && (
-                        <p className="text-[10px] text-amber-500/60 mt-2">Planificaciones y registros pendientes</p>
-                    )}
-                </div>
-
-                {/* Ausencias */}
-                <div className="bg-[#1e2336]/80 backdrop-blur-md p-5 rounded-2xl border border-[#3b4256]/50 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-rose-500/5 rounded-full blur-2xl pointer-events-none"></div>
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="bg-rose-500/10 p-2 rounded-lg">
-                            <CalendarOff className="w-4 h-4 text-rose-400" />
+                        <div className="text-3xl font-extrabold mb-1"
+                            style={{ color: s.color, fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+                            {s.val}
                         </div>
-                        <h3 className="text-gray-400 text-xs uppercase tracking-wider font-bold">Ausencias</h3>
+                        <p className="text-[11px] font-bold uppercase tracking-wider mb-1"
+                            style={{ color: 'var(--pr-fgs)' }}>{s.label}</p>
+                        <p className="text-[11px]" style={{ color: 'var(--pr-fgm)' }}>{s.sub}</p>
                     </div>
-                    <div className="flex items-end gap-2">
-                        <span className="text-3xl font-black text-rose-400">{totalAusencias}</span>
-                        <span className="text-xs text-gray-500 mb-1">registradas</span>
-                    </div>
-                    {pendientesAusencias > 0 && (
-                        <p className="text-[10px] text-rose-500/60 mt-2">{pendientesAusencias} pendiente{pendientesAusencias > 1 ? 's' : ''} de aprobación</p>
-                    )}
-                </div>
-
-                {/* Equipos Asignados */}
-                <div className="bg-[#1e2336]/80 backdrop-blur-md p-5 rounded-2xl border border-[#3b4256]/50 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none"></div>
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="bg-indigo-500/10 p-2 rounded-lg">
-                            <Briefcase className="w-4 h-4 text-indigo-400" />
-                        </div>
-                        <h3 className="text-gray-400 text-xs uppercase tracking-wider font-bold">Equipos</h3>
-                    </div>
-                    <div className="flex items-end gap-2">
-                        <span className="text-3xl font-black text-indigo-300">{pendientesEquipos}</span>
-                        <span className="text-xs text-gray-500 mb-1">proyectos</span>
-                    </div>
-                </div>
-
-                {/* Aprobadas */}
-                <div className="bg-[#1e2336]/80 backdrop-blur-md p-5 rounded-2xl border border-[#3b4256]/50 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none"></div>
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="bg-emerald-500/10 p-2 rounded-lg">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        </div>
-                        <h3 className="text-gray-400 text-xs uppercase tracking-wider font-bold">Aprobadas</h3>
-                    </div>
-                    <div className="flex items-end gap-2">
-                        <span className="text-3xl font-black text-emerald-400">{totalAprobadas}</span>
-                        <span className="text-xs text-gray-500 mb-1">confirmadas</span>
-                    </div>
-                </div>
+                ))}
             </div>
 
             {/* Próximos Turnos */}
-            <div className="bg-[#1e2336]/80 backdrop-blur-md rounded-2xl border border-[#3b4256]/50 overflow-hidden">
-                <div className="flex items-center gap-2 px-5 py-4 border-b border-white/5">
-                    <CalendarClock className="w-4 h-4 text-indigo-400" />
-                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">Próximos Turnos</h3>
+            <div className="rounded-2xl overflow-hidden"
+                style={{ background: 'var(--pr-bg-card)', border: '1px solid var(--pr-bsub)' }}>
+                <div className="flex items-center gap-2 px-5 py-4"
+                    style={{ borderBottom: '1px solid var(--pr-bsub)' }}>
+                    <CalendarClock className="w-4 h-4" style={{ color: 'var(--pr-primary)' }} />
+                    <h3 className="text-sm font-bold uppercase tracking-wider"
+                        style={{ color: 'var(--pr-fg)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+                        Próximos Turnos
+                    </h3>
                 </div>
 
-                <div className="p-4 flex flex-col gap-2">
+                <div>
                     {proximosTurnos.length > 0 ? (
-                        proximosTurnos.map((turno) => {
+                        proximosTurnos.map((turno, idx) => {
                             const esHoy = formatearFechaCorta(turno.fecha) === 'Hoy';
                             const ei = getEstadoStyle(turno.estadoId);
                             return (
                                 <div
                                     key={turno.id}
-                                    className={`relative flex items-center gap-4 p-3 rounded-xl border transition-all ${
-                                        esHoy
-                                            ? 'bg-indigo-900/20 border-indigo-700/50'
-                                            : 'bg-black/20 border-white/5 hover:border-white/10'
-                                    }`}
+                                    className="relative flex items-center gap-4 px-5 py-3.5 transition-colors"
+                                    style={{ borderTop: idx > 0 ? '1px solid var(--pr-bsub)' : 'none' }}
                                 >
-                                    <span className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${ei.barColor}`}></span>
+                                    <span className={`absolute left-0 top-0 bottom-0 w-1 ${ei.barColor}`}></span>
 
                                     <div className="pl-2 text-center min-w-[55px]">
-                                        <span className={`text-[10px] font-bold uppercase ${esHoy ? 'text-amber-400' : 'text-gray-500'}`}>
+                                        <span className="text-[10px] font-bold uppercase"
+                                            style={{ color: esHoy ? 'var(--pr-warn)' : 'var(--pr-fgs)' }}>
                                             {formatearFechaCorta(turno.fecha)}
                                         </span>
                                     </div>
 
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2">
-                                            <Clock className="w-3.5 h-3.5 text-gray-500" />
-                                            <span className="text-sm text-white font-medium">
+                                            <Clock className="w-3.5 h-3.5" style={{ color: 'var(--pr-fgm)' }} />
+                                            <span className="text-sm font-medium" style={{ color: 'var(--pr-fg)' }}>
                                                 {formatearHora(turno.inicio)}
                                                 {turno.fin ? ` — ${formatearHora(turno.fin)}` : ''}
                                             </span>
-                                            <span className="text-xs text-indigo-300 font-medium">
+                                            <span className="text-xs font-medium" style={{ color: 'var(--pr-primary)' }}>
                                                 {turno.horas.toFixed(1).replace(/\.0$/, '')}h
                                             </span>
                                         </div>
                                         {turno.esDelLider && (
-                                            <span className="text-[10px] text-violet-400 mt-0.5 inline-block">Asignado por líder</span>
+                                            <span className="text-[10px] mt-0.5 inline-block" style={{ color: 'var(--pr-pink)' }}>
+                                                Asignado por líder
+                                            </span>
                                         )}
                                     </div>
 
@@ -277,9 +256,9 @@ export default function ResumePanel() {
                             );
                         })
                     ) : (
-                        <div className="text-center py-8">
-                            <CalendarClock className="w-10 h-10 text-gray-700 mx-auto mb-2" />
-                            <p className="text-gray-500 text-sm">No tienes turnos próximos planificados.</p>
+                        <div className="text-center py-12 px-6">
+                            <CalendarClock className="w-10 h-10 mx-auto mb-2" style={{ color: 'var(--pr-fgs)' }} />
+                            <p className="text-sm" style={{ color: 'var(--pr-fgm)' }}>No tienes turnos próximos planificados.</p>
                         </div>
                     )}
                 </div>

@@ -1,29 +1,23 @@
-    /* El contenedor principal */
+/* 3-column layout matching Purple Rain design — wider sidebars */
+.dashboardGrid {
+    display: grid;
+    height: 100%;
+    width: 100%;
+    background: var(--pr-bg);
+    color: var(--pr-fg);
+    /* wider sidebars per user request */
+    grid-template-columns: 340px 1fr 360px;
+}
+
+@media (max-width: 1280px) {
     .dashboardGrid {
-        display: grid;
-        height: 100vh;
-        /* Ocupa toda la altura */
-        width: 100%;
-        padding: 1rem;
-        gap: 1rem;
-        /* Espacio entre paneles */
-
-        /* Aquí está la magia: 3 columnas.
-        - 320px: Panel izquierdo fijo
-        - 1fr: El calendario toma todo el espacio sobrante (flexible)
-        - 300px: Panel derecho fijo
-    */
-        grid-template-columns: 320px 1fr 300px;
-
-        /* Color de fondo oscuro (como tu diseño) */
-        color: white;
+        grid-template-columns: 300px 1fr 320px;
     }
+}
 
-    /* Opcional: Para que se adapte a móviles (Responsive) */
-    @media (max-width: 1024px) {
-        .dashboardGrid {
-            grid-template-columns: 1fr;
-            /* Una sola columna */
-            height: auto;
-        }
+@media (max-width: 1024px) {
+    .dashboardGrid {
+        grid-template-columns: 1fr;
+        height: auto;
     }
+}

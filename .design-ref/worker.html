@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schedule — Panel Trabajador</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+:root {
+  --bg:        #161b2a;
+  --bg-deep:   #0f1320;
+  --bg-card:   #1c2138;
+  --border:    #2e3650;
+  --bsub:      #222840;
+  --primary:   #7c3aed;
+  --pri-dim:   #6d28d9;
+  --pri-glow:  rgba(124,58,237,.2);
+  --pri-fg:    #f5f3ff;
+  --fg:        #f0f2f9;
+  --fgm:       #8b97bc;
+  --fgs:       #4a5270;
+  --success:   #10b981;
+  --warn:      #f59e0b;
+  --red:       #ef4444;
+  --cyan:      #06b6d4;
+  --pink:      #db2777;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body,#root{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--fg);font-family:'Inter',sans-serif;font-size:14px;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px;}
+
+.hd{font-family:'Plus Jakarta Sans',sans-serif;}
+.topbar{height:64px;background:var(--bg-deep);border-bottom:1px solid var(--bsub);display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0;gap:20px;}
+.topbar-logo{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1rem;color:var(--fg);display:flex;align-items:center;gap:7px;text-decoration:none;}
+.topbar-logo-dot{width:8px;height:8px;border-radius:50%;background:var(--primary);box-shadow:0 0 8px var(--primary);}
+.topbar-section{font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;font-size:.8rem;color:var(--fgs);padding:4px 12px;background:var(--bsub);border-radius:100px;}
+.logout-btn{display:flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--fgm);font-size:.75rem;font-weight:600;cursor:pointer;transition:border-color .2s,color .2s;font-family:'Plus Jakarta Sans',sans-serif;}
+.logout-btn:hover{border-color:var(--primary);color:var(--fg);}
+
+.layout{display:flex;height:calc(100vh - 64px);overflow:hidden;}
+.sidebar-l{width:240px;flex-shrink:0;background:var(--bg-deep);border-right:1px solid var(--bsub);overflow-y:auto;display:flex;flex-direction:column;}
+.sidebar-r{width:264px;flex-shrink:0;background:var(--bg-deep);border-left:1px solid var(--bsub);display:flex;flex-direction:column;overflow:hidden;}
+.center{flex:1;overflow:hidden;display:flex;flex-direction:column;}
+
+.sec-label{font-family:'Plus Jakarta Sans',sans-serif;font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--fgs);padding:16px 14px 8px;}
+.stat-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 10px 10px;}
+.stat-box{background:var(--bg-card);border:1px solid var(--bsub);border-radius:10px;padding:12px 10px;}
+.stat-box-lbl{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--fgs);margin-bottom:4px;}
+.stat-box-val{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.4rem;color:var(--fg);}
+.stat-box-val.purple{color:var(--primary);}
+.stat-box-val.green{color:var(--success);}
+.stat-box-val.warn{color:var(--warn);}
+.stat-box-val.red{color:var(--red);}
+.stat-box-full{background:var(--bg-card);border:1px solid var(--bsub);border-radius:10px;padding:12px 10px;margin:0 10px 10px;}
+
+.date-filter{margin:0 10px 10px;background:var(--bg-card);border:1px solid var(--bsub);border-radius:10px;padding:10px;display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--fgm);}
+.date-badge{background:var(--bsub);border-radius:6px;padding:4px 8px;font-weight:600;color:var(--fg);}
+
+.shift-mini{padding:8px 14px;border-top:1px solid var(--bsub);display:flex;flex-direction:column;gap:2px;}
+.shift-mini-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:3px;}
+.shift-mini-time{font-size:.68rem;font-weight:700;color:var(--fg);}
+.shift-mini-sub{font-size:.65rem;color:var(--fgm);}
+
+/* RIGHT PANEL */
+.profile-card{padding:20px 14px;border-bottom:1px solid var(--bsub);}
+.avatar{border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;color:#fff;flex-shrink:0;}
+.nav-btn{display:flex;align-items:center;gap:10px;padding:13px 18px;border:none;background:transparent;color:var(--fgm);font-family:'Plus Jakarta Sans',sans-serif;font-weight:600;font-size:.84rem;cursor:pointer;width:100%;text-align:left;transition:background .2s,color .2s;border-radius:0;}
+.nav-btn:hover{background:rgba(124,58,237,.08);color:var(--fg);}
+.nav-btn.active{background:rgba(124,58,237,.14);color:var(--primary);}
+.nav-icon{width:16px;text-align:center;font-size:.85rem;flex-shrink:0;}
+
+/* CENTER SCREENS */
+.screen{flex:1;overflow-y:auto;padding:24px 28px;}
+
+/* STAT CARDS ROW */
+.center-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.cstat{background:var(--bg-card);border:1px solid var(--bsub);border-radius:12px;padding:20px 18px;position:relative;overflow:hidden;}
+.cstat::before{content:'';position:absolute;top:0;right:0;width:60px;height:60px;border-radius:50%;filter:blur(30px);pointer-events:none;}
+.cstat-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.85rem;margin-bottom:12px;}
+.cstat-val{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:2rem;margin-bottom:4px;}
+.cstat-sub{font-size:.72rem;color:var(--fgm);line-height:1.4;}
+
+/* WELCOME BANNER */
+.welcome{background:linear-gradient(135deg,rgba(124,58,237,.18) 0%,rgba(109,40,217,.08) 100%);border:1px solid rgba(124,58,237,.3);border-radius:14px;padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;gap:14px;}
+.welcome h2{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.3rem;margin-bottom:4px;}
+.welcome p{font-size:.82rem;color:var(--fgm);}
+
+/* SECTION CARD */
+.section-card{background:var(--bg-card);border:1px solid var(--bsub);border-radius:12px;overflow:hidden;margin-bottom:20px;}
+.section-card-head{display:flex;align-items:center;gap:8px;padding:14px 18px;border-bottom:1px solid var(--bsub);font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:.82rem;}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px;color:var(--fgs);gap:10px;}
+.empty-icon{font-size:2rem;opacity:.4;}
+.empty-text{font-size:.82rem;}
+
+/* CALENDAR */
+.cal-screen{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.cal-header{display:flex;align-items:center;gap:12px;padding:16px 24px;border-bottom:1px solid var(--bsub);flex-shrink:0;}
+.cal-header h2{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.1rem;flex:1;}
+.cal-nav-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--fgm);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.85rem;transition:all .2s;}
+.cal-nav-btn:hover{border-color:var(--primary);color:var(--primary);}
+.month-label{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:.95rem;min-width:110px;text-align:center;}
+.cal-legend{display:flex;align-items:flex-start;gap:8px;padding:12px 24px;border-bottom:1px solid var(--bsub);flex-shrink:0;flex-wrap:wrap;min-height:52px;}
+.shift-pill{display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:100px;font-size:.7rem;font-weight:700;white-space:nowrap;flex-shrink:0;}
+.tab-pill{padding:6px 14px;border-radius:8px;font-size:.78rem;font-weight:700;border:none;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:all .15s;}
+.tab-pill.active{background:var(--primary);color:var(--pri-fg);}
+.tab-pill.inactive{background:transparent;color:var(--fgm);border:1px solid var(--border);}
+
+.cal-day-headers{display:grid;grid-template-columns:repeat(7,1fr);flex-shrink:0;}
+.cal-day-hdr{padding:8px 12px;font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--fgs);text-align:center;border-bottom:1px solid var(--bsub);}
+.cal-grid{flex:1;display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:1fr;gap:0;overflow:hidden;background:var(--border);}
+.cal-cell{border:none;padding:8px;display:flex;flex-direction:column;gap:4px;overflow:hidden;min-height:0;background:var(--bg-card);}
+.cal-cell.other-month{background:var(--bg-deep);opacity:.5;}
+.cal-cell.today .cal-day-num{background:var(--primary);color:#fff;border-radius:50%;}
+.cal-day-num{width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;flex-shrink:0;}
+.cal-event{border-radius:5px;padding:4px 7px;font-size:.65rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;line-height:1.3;}
+
+/* SOLICITUDES */
+.sol-tabs{display:flex;border-bottom:1px solid var(--bsub);padding:0 24px;flex-shrink:0;}
+.sol-tab{padding:14px 16px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:.82rem;cursor:pointer;border-bottom:2px solid transparent;color:var(--fgm);transition:all .2s;display:flex;align-items:center;gap:6px;background:none;border-top:none;border-left:none;border-right:none;}
+.sol-tab:hover{color:var(--fg);}
+.sol-tab.active{color:var(--primary);border-bottom-color:var(--primary);}
+.sol-badge{font-size:.62rem;font-weight:800;padding:2px 6px;border-radius:100px;background:rgba(124,58,237,.2);color:var(--primary);}
+.sol-stats-row{display:grid;grid-template-columns:repeat(5,1fr) 1px repeat(2,1fr);gap:0;border-bottom:1px solid var(--bsub);flex-shrink:0;}
+.sol-stat{padding:16px;text-align:center;border-right:1px solid var(--bsub);}
+.sol-stat:last-child{border-right:none;}
+.sol-stat-lbl{font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--fgs);margin-bottom:4px;}
+.sol-stat-val{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.4rem;}
+.sol-divider{background:var(--bsub);width:1px;}
+.sol-list{flex:1;overflow-y:auto;padding:16px 24px;display:flex;flex-direction:column;gap:12px;}
+.sol-date-group{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--fgs);padding:4px 0 8px;}
+.sol-item{background:var(--bg-card);border:1px solid var(--bsub);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:14px;transition:border-color .2s;}
+.sol-item:hover{border-color:var(--border);}
+.sol-item-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;}
+.status-badge{font-size:.65rem;font-weight:800;padding:3px 9px;border-radius:100px;}
+.badge-warn{background:rgba(245,158,11,.15);color:#f59e0b;}
+.badge-green{background:rgba(16,185,129,.15);color:#10b981;}
+.badge-red{background:rgba(239,68,68,.15);color:#ef4444;}
+.badge-purple{background:rgba(124,58,237,.15);color:#7c3aed;}
+.badge-plan{background:rgba(6,182,212,.15);color:#06b6d4;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useMemo } = React;
+
+/* ── CONSTANTS ── */
+const SHIFTS = {
+  turnoAR: { name:'Turno A Con Reserv.', color:'#f59e0b', bg:'rgba(245,158,11,.15)', border:'rgba(245,158,11,.5)', time:'08:00–16:30' },
+  turnoA:  { name:'Turno A',             color:'#7c3aed', bg:'rgba(124,58,237,.15)', border:'rgba(124,58,237,.5)', time:'08:00–16:30' },
+  turnoB:  { name:'Turno B',             color:'#10b981', bg:'rgba(16,185,129,.15)', border:'rgba(16,185,129,.5)', time:'06:00–14:00' },
+  turnoC:  { name:'Turno C',             color:'#06b6d4', bg:'rgba(6,182,212,.15)',  border:'rgba(6,182,212,.5)',  time:'00:00–07:00' },
+  noDisp:  { name:'No Disponible',       color:'#ef4444', bg:'rgba(239,68,68,.15)',  border:'rgba(239,68,68,.5)',  time:'Todo el día' },
+  licencia:{ name:'Licencia Médica',     color:'#06b6d4', bg:'rgba(6,182,212,.15)',  border:'rgba(6,182,212,.5)',  time:'Todo el día' },
+  reemplazo:{ name:'Reemplazo',          color:'#db2777', bg:'rgba(219,39,119,.15)', border:'rgba(219,39,119,.5)', time:'Todo el día' },
+  permAdm: { name:'Permiso Administ.',   color:'#ef4444', bg:'rgba(239,68,68,.15)',  border:'rgba(239,68,68,.5)',  time:'Todo el día' },
+};
+
+const EVENTS = {
+  '2026-04-01':[ {t:'turnoB'} ], '2026-04-02':[ {t:'turnoB'} ],
+  '2026-04-03':[ {t:'turnoB'} ], '2026-04-04':[ {t:'turnoB'} ],
+  '2026-04-05':[ {t:'turnoB'} ],
+  '2026-04-09':[ {t:'reemplazo'} ], '2026-04-10':[ {t:'reemplazo'} ],
+  '2026-04-11':[ {t:'reemplazo'} ], '2026-04-12':[ {t:'reemplazo'} ],
+  '2026-04-15':[ {t:'reemplazo'} ],
+  '2026-04-17':[ {t:'turnoAR'} ],
+  '2026-04-18':[ {t:'permAdm'} ],
+  '2026-04-19':[ {t:'reemplazo'} ],
+  '2026-04-21':[ {t:'reemplazo'} ], '2026-04-22':[ {t:'reemplazo'} ],
+  '2026-04-23':[ {t:'reemplazo'} ], '2026-04-24':[ {t:'reemplazo'} ],
+  '2026-04-25':[ {t:'reemplazo'} ],
+  '2026-04-30':[ {t:'turnoA'} ],
+};
+
+const HORAS = [
+  { id:1, date:'Viernes, 15 de Mayo de 2026',  label:'Turno Planificado', tag:'plan',  range:'vie 15 may · 02:00–17:00', dur:'1h',  status:'pending' },
+  { id:2, date:'Viernes, 17 de Abril de 2026', label:'Turno Planificado', tag:'plan',  range:'vie 11 abr · 08:00–19:30', dur:'8h',  status:'pending' },
+  { id:3, date:'Jueves, 29 de Marzo de 2026',  label:'Turno Planificado', tag:'plan',  range:'jue 28 mar · 08:00–19:00', dur:'75h', status:'pending' },
+  { id:4, date:'Miércoles, 25 de Marzo de 2026',label:'Turno Planificado',tag:'plan',  range:'mié 19 mar · 08:00–13:00', dur:'10h', status:'pending' },
+  { id:5, date:'Martes, 24 de Marzo de 2026',  label:'Turno Planificado', tag:'plan',  range:'mar 19 feb · 09:00–13:30', dur:'10h', status:'pending' },
+  { id:6, date:'Lunes, 03 de Marzo de 2026',   label:'Turno Planificado', tag:'plan',  range:'lun 23 mar · 08:00–16:30', dur:'8h',  status:'pending' },
+];
+
+const COBERTURAS = [
+  { id:1, date:'Jueves, 19 de Marzo de 2026', role:'Administrativo', tag:'completa', createdBy:'Carlos', range:'jue 29 abr – lun 25 abr', dias:'4 días', status:'accepted' },
+  { id:2, date:'Jueves, 19 de Marzo de 2026', role:'Administrativo', tag:'completa', createdBy:'Carlos', range:'jue 10 abr – mié 23 abr', dias:'0 días', status:'accepted' },
+  { id:3, date:'Jueves, 19 de Marzo de 2026', role:'Administrativo', tag:'sustituto', createdBy:'Carlos', range:'dom 19 abr – mar 21 abr', dias:'4 días', status:'accepted' },
+];
+
+/* ── UTILS ── */
+const pad  = n => String(n).padStart(2,'0');
+const key  = (y,m,d) => `${y}-${pad(m)}-${pad(d)}`;
+const initials = n => n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+const DAYS = ['LUN','MAR','MIÉ','JUE','VIE','SÁB','DOM'];
+const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+function calendarDays(year, month) {
+  // month: 0-indexed. Returns array of {year,month,day,isCurrentMonth}
+  // Week starts Monday
+  const first = new Date(year, month, 1);
+  const last  = new Date(year, month+1, 0);
+  const startDow = (first.getDay() + 6) % 7; // 0=Mon
+  const cells = [];
+  let d = new Date(year, month, 1 - startDow);
+  while (cells.length < 35 || d <= last) {
+    cells.push({ y:d.getFullYear(), m:d.getMonth()+1, d:d.getDate(), cur: d.getMonth()===month });
+    d = new Date(d.getFullYear(), d.getMonth(), d.getDate()+1);
+    if (cells.length >= 35 && d > last) break;
+  }
+  while (cells.length < 35) {
+    cells.push({ y:d.getFullYear(), m:d.getMonth()+1, d:d.getDate(), cur:false });
+    d = new Date(d.getFullYear(), d.getMonth(), d.getDate()+1);
+  }
+  return cells;
+}
+
+/* ── SMALL COMPONENTS ── */
+function Avatar({ name, color='#7c3aed', size=38 }) {
+  return <div className="avatar" style={{ width:size, height:size, background:color, fontSize:size*.35 }}>{initials(name)}</div>;
+}
+
+/* ── DATE PICKER ── */
+const MONTHS_FULL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const MONTHS_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const DAY_ABBR = ['L','M','X','J','V','S','D'];
+
+function PickerMiniCal({ year, month, startKey, endKey, hoverKey, onDay, onHover }) {
+  const days = calendarDays(year, month);
+  const fmt = (y,m,d) => `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  return (
+    <div style={{minWidth:176}}>
+      <p style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,fontSize:'.8rem',textAlign:'center',marginBottom:10,color:'var(--fg)'}}>{MONTHS_FULL[month]} {year}</p>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:1,marginBottom:4}}>
+        {DAY_ABBR.map(d=><div key={d} style={{textAlign:'center',fontSize:'.58rem',fontWeight:800,color:'var(--fgs)',padding:'2px 0'}}>{d}</div>)}
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:2}}>
+        {days.map((cell,i)=>{
+          const k = fmt(cell.y, cell.m, cell.d);
+          const isS = k===startKey, isE = k===endKey;
+          const ek = endKey||hoverKey;
+          const inR = startKey&&ek && k>startKey && k<ek;
+          return (
+            <div key={i}
+              onClick={()=>cell.cur && onDay(cell)}
+              onMouseEnter={()=>cell.cur && onHover(k)}
+              style={{
+                width:24,height:24,display:'flex',alignItems:'center',justifyContent:'center',
+                borderRadius: isS||isE ? '50%' : inR ? 3 : 4,
+                background: isS||isE ? 'var(--primary)' : inR ? 'rgba(124,58,237,.18)' : 'transparent',
+                color: isS||isE ? '#fff' : !cell.cur ? 'var(--fgs)' : 'var(--fg)',
+                fontSize:'.7rem', fontWeight: isS||isE ? 700 : 400,
+                cursor: cell.cur ? 'pointer' : 'default',
+                opacity: !cell.cur ? .25 : 1,
+                transition:'background .12s',
+              }}>
+              {cell.d}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── LEFT SIDEBAR ── */
+function LeftSidebar() {
+  const [open, setOpen]       = useState(false);
+  const [startKey, setStart]  = useState('2026-04-01');
+  const [endKey,   setEnd]    = useState('2026-04-30');
+  const [hover,    setHover]  = useState(null);
+  const [stage,    setStage]  = useState('idle');
+  const [pm,       setPm]     = useState(3); // picker month (0-indexed)
+
+  const fmtKey = k => {
+    if (!k) return '—';
+    const [,m,d] = k.split('-');
+    return `${parseInt(d)} ${MONTHS_SHORT[parseInt(m)-1]}`;
+  };
+
+  const onDay = cell => {
+    const k = `${cell.y}-${String(cell.m).padStart(2,'0')}-${String(cell.d).padStart(2,'0')}`;
+    if (stage === 'start') { setStart(k); setEnd(null); setStage('end'); }
+    else { k < startKey ? (setEnd(startKey), setStart(k)) : setEnd(k); setStage('idle'); setOpen(false); }
+  };
+
+  const m2 = pm >= 11 ? 0 : pm+1;
+  const y2 = pm >= 11 ? 2027 : 2026;
+
+  return (
+    <aside className="sidebar-l" style={{position:'relative'}}>
+      <p className="sec-label" style={{paddingTop:20,display:'flex',alignItems:'center',gap:6}}>
+        <span>📅</span> Resumen del mes
+      </p>
+
+      {/* Clickable date filter */}
+      <div style={{margin:'0 10px 10px',position:'relative'}}>
+        <div className="date-filter"
+          onClick={()=>{ setOpen(o=>!o); setStage('start'); }}
+          style={{cursor:'pointer',userSelect:'none',gap:6,justifyContent:'center'}}>
+          <span style={{fontSize:'.8rem'}}>📅</span>
+          <span className="date-badge">{fmtKey(startKey)}</span>
+          <span style={{color:'var(--fgs)',fontSize:'.7rem'}}>→</span>
+          <span className="date-badge">{fmtKey(endKey)}</span>
+          <span style={{color:'var(--fgs)',fontSize:'.65rem',marginLeft:2}}>▾</span>
+        </div>
+
+        {open && (
+          <div style={{
+            position:'fixed', left:248, top:128, zIndex:600,
+            background:'var(--bg-card)', border:'1px solid var(--border)',
+            borderRadius:14, padding:18, minWidth:420,
+            boxShadow:'0 24px 60px rgba(0,0,0,.6)',
+          }} onMouseLeave={()=>setHover(null)}>
+            {/* Header */}
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
+              <button onClick={()=>setPm(m=>m>0?m-1:11)} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,width:24,height:24,cursor:'pointer',color:'var(--fgm)',fontSize:'.8rem',display:'flex',alignItems:'center',justifyContent:'center'}}>‹</button>
+              <p style={{flex:1,textAlign:'center',fontSize:'.75rem',color:stage==='end'?'var(--warn)':'var(--fg)',fontWeight:600,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>
+                {stage==='start' ? '📅 Selecciona fecha de inicio' : '📅 Ahora selecciona la fecha de fin'}
+              </p>
+              <button onClick={()=>setPm(m=>m<11?m+1:0)} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,width:24,height:24,cursor:'pointer',color:'var(--fgm)',fontSize:'.8rem',display:'flex',alignItems:'center',justifyContent:'center'}}>›</button>
+            </div>
+            {/* Two months */}
+            <div style={{display:'flex',gap:20,justifyContent:'center'}}>
+              <PickerMiniCal year={2026} month={pm} startKey={startKey} endKey={endKey} hoverKey={hover} onDay={onDay} onHover={setHover} />
+              <div style={{width:1,background:'var(--bsub)'}} />
+              <PickerMiniCal year={y2} month={m2} startKey={startKey} endKey={endKey} hoverKey={hover} onDay={onDay} onHover={setHover} />
+            </div>
+            {/* Footer */}
+            <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:14,paddingTop:12,borderTop:'1px solid var(--bsub)'}}>
+              <button onClick={()=>setOpen(false)} style={{background:'transparent',border:'1px solid var(--border)',borderRadius:7,padding:'6px 12px',color:'var(--fgm)',fontSize:'.73rem',fontWeight:600,cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Cancelar</button>
+              <button onClick={()=>{setStage('idle');setOpen(false);}} style={{background:'var(--primary)',border:'none',borderRadius:7,padding:'6px 14px',color:'#fff',fontSize:'.73rem',fontWeight:700,cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif",boxShadow:'0 0 16px rgba(124,58,237,.3)'}}>Aplicar filtro</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="stat-row">
+        <div className="stat-box">
+          <div className="stat-box-lbl">Planificadas</div>
+          <div className="stat-box-val purple">30h</div>
+        </div>
+        <div className="stat-box">
+          <div className="stat-box-lbl">Trabajadas</div>
+          <div className="stat-box-val green">6h</div>
+        </div>
+      </div>
+      <div className="stat-box-full">
+        <div className="stat-box-lbl">Por revisar (pendientes)</div>
+        <div className="stat-box-val warn">8h</div>
+      </div>
+
+      <div style={{height:1,background:'var(--bsub)',margin:'4px 10px'}} />
+
+      <p className="sec-label" style={{display:'flex',alignItems:'center',gap:6}}>
+        <span>⏰</span> Próximos turnos
+      </p>
+
+      {[
+        { shift:'Turno B', time:'Lun 27 – 06:00–14:00', color:'#10b981' },
+        { shift:'Turno A', time:'Mié 30 – 08:00–16:30', color:'#7c3aed' },
+      ].map((s,i) => (
+        <div key={i} className="shift-mini">
+          <div style={{display:'flex',alignItems:'flex-start',gap:8}}>
+            <div className="shift-mini-dot" style={{background:s.color,marginTop:3}} />
+            <div>
+              <div className="shift-mini-time">{s.shift}</div>
+              <div className="shift-mini-sub">{s.time}</div>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      <div style={{flex:1}} />
+    </aside>
+  );
+}
+
+/* ── RIGHT PANEL ── */
+function RightPanel({ screen, setScreen }) {
+  const [expanded, setExpanded] = React.useState(true);
+  const NAV_WORKER = [
+    { id:'resumen',     icon:'🏠', label:'Ver Resumen' },
+    { id:'equipos',     icon:'👥', label:'Ver Equipos' },
+    { id:'calendario',  icon:'📅', label:'Ver Calendario' },
+    { id:'solicitudes', icon:'🔔', label:'Ver Solicitudes', b1:'3', b2:'12' },
+  ];
+  return (
+    <aside className="sidebar-r">
+      <div className="profile-card">
+        <div style={{display:'flex',justifyContent:'flex-end',marginBottom:8}}>
+          <button onClick={()=>setExpanded(e=>!e)} style={{background:'var(--bsub)',border:'none',color:'var(--fgm)',borderRadius:6,width:24,height:24,cursor:'pointer',fontSize:'.75rem'}}>{expanded?'˄':'˅'}</button>
+        </div>
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,marginBottom:expanded?14:0}}>
+          <Avatar name="Anita Ana" color="#7c3aed" size={52} />
+          <div style={{textAlign:'center'}}>
+            <p style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:800,fontSize:'.95rem'}}>Anita</p>
+            <p style={{fontSize:'.7rem',color:'var(--fgm)'}}>Desarrollador Semi-Senior</p>
+          </div>
+        </div>
+        {expanded && (
+          <>
+            <div style={{background:'var(--bg-deep)',border:'1px solid var(--bsub)',borderRadius:10,padding:'12px 14px',marginBottom:10,display:'flex',flexDirection:'column',gap:10}}>
+              {[['NOMBRE','Ana'],['EMAIL','ana@empresa.com'],['TELÉFONO','+56930302020'],['ROL','Desarrollador Semi-Senior']].map(([l,v])=>(
+                <div key={l}>
+                  <p style={{fontSize:'.57rem',fontWeight:800,color:'var(--fgs)',letterSpacing:'.07em',textTransform:'uppercase',marginBottom:2}}>{l}</p>
+                  <p style={{fontSize:'.78rem',fontWeight:600,wordBreak:'break-all'}}>{v}</p>
+                </div>
+              ))}
+            </div>
+            <button style={{width:'100%',background:'var(--primary)',border:'none',borderRadius:8,padding:'9px',color:'#fff',fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,fontSize:'.78rem',cursor:'pointer',boxShadow:'0 0 14px rgba(124,58,237,.3)'}}>Modificar Datos</button>
+          </>
+        )}
+      </div>
+      <div style={{padding:'8px 0',flex:1}}>
+        {NAV_WORKER.map(n => (
+          <button key={n.id} className={`nav-btn ${screen===n.id?'active':''}`} onClick={() => setScreen(n.id)}>
+            <span className="nav-icon">{n.icon}</span>
+            {n.label}
+            {(n.b1||n.b2) && (
+              <span style={{marginLeft:'auto',display:'flex',gap:3}}>
+                {n.b1 && <span style={{fontSize:'.6rem',fontWeight:800,padding:'2px 5px',borderRadius:100,background:'rgba(245,158,11,.2)',color:'#f59e0b'}}>{n.b1}</span>}
+                {n.b2 && <span style={{fontSize:'.6rem',fontWeight:800,padding:'2px 5px',borderRadius:100,background:'rgba(239,68,68,.2)',color:'#ef4444'}}>{n.b2}</span>}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+      <div style={{padding:'12px 14px',borderTop:'1px solid var(--bsub)'}}>
+        <a href="Schedule - Lider Dashboard.html" style={{display:'flex',alignItems:'center',gap:6,padding:'8px 10px',borderRadius:8,textDecoration:'none',color:'var(--fgm)',fontSize:'.75rem',fontWeight:600,fontFamily:"'Plus Jakarta Sans',sans-serif",background:'var(--bg-card)',border:'1px solid var(--bsub)'}}>
+          <span>🏢</span> Panel del Líder
+        </a>
+      </div>
+    </aside>
+  );
+}
+
+/* ── RESUMEN SCREEN ── */
+function ResumeScreen() {
+  return (
+    <div className="screen">
+      <div className="welcome">
+        <div style={{fontSize:'1.8rem'}}>👋</div>
+        <div>
+          <h2>¡Hola, Anita!</h2>
+          <p>Aquí tienes el resumen de tu actividad.</p>
+        </div>
+      </div>
+
+      <div className="center-stats">
+        {[
+          { label:'Horas Panel',   val:'2',  sub:'solicitudes · Planificaciones a registrar pendientes', color:'#7c3aed', bg:'rgba(124,58,237,.06)', icon:'⏱' },
+          { label:'Ausencias',     val:'0',  sub:'registradas',            color:'#f59e0b', bg:'rgba(245,158,11,.06)', icon:'🚫' },
+          { label:'Equipos',       val:'1',  sub:'proyectos',              color:'#10b981', bg:'rgba(16,185,129,.06)', icon:'👥' },
+          { label:'Aprobadas',     val:'0',  sub:'confirmadas',            color:'#10b981', bg:'rgba(16,185,129,.06)', icon:'✓'  },
+        ].map((c,i) => (
+          <div key={i} className="cstat" style={{background:c.bg, borderColor:`${c.color}30`}}>
+            <div className="cstat-icon" style={{background:`${c.color}20`, color:c.color}}>{c.icon}</div>
+            <div className="cstat-val" style={{color:c.color}}>{c.val}</div>
+            <p style={{fontSize:'.7rem',fontWeight:700,textTransform:'uppercase',letterSpacing:'.05em',color:'var(--fgs)',marginBottom:4}}>{c.label}</p>
+            <div className="cstat-sub">{c.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="section-card">
+        <div className="section-card-head">
+          <span>📅</span>
+          <span>PRÓXIMOS TURNOS</span>
+        </div>
+        <div>
+          {[
+            { shift:'Turno B', date:'Lun 27 abr · 06:00–14:00', project:'Proyecto Alpha', color:'#10b981' },
+            { shift:'Turno A', date:'Mié 30 abr · 08:00–16:30', project:'Proyecto Alpha', color:'#7c3aed' },
+          ].map((s,i) => (
+            <div key={i} style={{display:'flex',alignItems:'center',gap:14,padding:'14px 18px',borderTop:i>0?'1px solid var(--bsub)':'none'}}>
+              <div style={{width:38,height:38,borderRadius:10,background:`${s.color}20`,border:`1px solid ${s.color}50`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                <div style={{width:10,height:10,borderRadius:'50%',background:s.color}} />
+              </div>
+              <div style={{flex:1}}>
+                <p style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,fontSize:'.88rem'}}>{s.shift}</p>
+                <p style={{fontSize:'.75rem',color:'var(--fgm)',marginTop:2}}>{s.date}</p>
+              </div>
+              <span style={{fontSize:'.72rem',color:'var(--fgs)'}}>{s.project}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── CALENDAR SCREEN ── */
+function CalendarScreen() {
+  const [month, setMonth] = useState(3); // April = 3 (0-indexed)
+  const [year]  = useState(2026);
+  const [tab, setTab] = useState('etiquetas');
+  const days = useMemo(() => calendarDays(year, month), [year, month]);
+  const today = { y:2026, m:4, d:24 };
+
+  const legendShifts = ['turnoAR','turnoA','turnoB','turnoC','noDisp','licencia'];
+
+  return (
+    <div className="cal-screen">
+      {/* Header */}
+      <div className="cal-header">
+        <h2>Calendario De Turnos</h2>
+        <p style={{fontSize:'.78rem',color:'var(--fgm)',flex:1}}>Planifica tus horarios y etiquetas</p>
+        <button className="cal-nav-btn" onClick={() => setMonth(m => m-1)}>‹</button>
+        <span className="month-label">{MONTHS[month]} {year}</span>
+        <button className="cal-nav-btn" onClick={() => setMonth(m => m+1)}>›</button>
+        <div style={{width:1,height:20,background:'var(--bsub)',margin:'0 8px'}} />
+        <button style={{display:'flex',alignItems:'center',gap:6,background:'var(--primary)',color:var_fg,border:'none',borderRadius:8,padding:'7px 14px',fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,fontSize:'.78rem',cursor:'pointer'}}>+ Nuevo Patrón / Etiqueta</button>
+        <button style={{background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:8,padding:'7px 12px',color:'var(--fgm)',fontSize:'.75rem',fontWeight:600,cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Desactivar</button>
+        <button style={{background:'var(--primary)',border:'none',borderRadius:8,padding:'7px 14px',color:'var(--pri-fg)',fontSize:'.75rem',fontWeight:700,cursor:'pointer',fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Guardar Horario</button>
+      </div>
+
+      {/* Legend bar */}
+      <div className="cal-legend">
+        <button className={`tab-pill ${tab==='etiquetas'?'active':'inactive'}`} onClick={() => setTab('etiquetas')}>Etiquetas</button>
+        <button className={`tab-pill ${tab==='patrones'?'active':'inactive'}`} onClick={() => setTab('patrones')}>Patrones</button>
+        <div style={{width:1,height:20,background:'var(--bsub)',margin:'0 4px'}} />
+        <span style={{fontSize:'.72rem',color:'var(--fgs)',marginRight:4}}>Selecciona una etiqueta para asignar</span>
+        {legendShifts.map(sk => {
+          const s = SHIFTS[sk];
+          return (
+            <div key={sk} className="shift-pill" style={{background:s.bg, border:`1px solid ${s.border}`, color:s.color}}>
+              <div style={{width:7,height:7,borderRadius:'50%',background:s.color,flexShrink:0}} />
+              {s.name}
+              <span style={{opacity:.7,fontSize:'.62rem',marginLeft:2}}>{s.time}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Day headers */}
+      <div className="cal-day-headers">
+        {DAYS.map(d => <div key={d} className="cal-day-hdr">{d}</div>)}
+      </div>
+
+      {/* Grid */}
+      <div className="cal-grid">
+        {days.map((cell, i) => {
+          const dk = key(cell.y, cell.m, cell.d);
+          const evts = EVENTS[dk] || [];
+          const isToday = cell.y===today.y && cell.m===today.m && cell.d===today.d;
+          return (
+            <div key={i} className={`cal-cell ${!cell.cur?'other-month':''} ${isToday?'today':''}`}>
+              <div className="cal-day-num">{cell.d}</div>
+              {evts.map((ev, j) => {
+                const s = SHIFTS[ev.t];
+                if (!s) return null;
+                return (
+                  <div key={j} className="cal-event" style={{background:s.bg, borderLeft:`3px solid ${s.color}`, color:s.color}}>
+                    {s.name}
+                    <br />
+                    <span style={{fontWeight:400, opacity:.8}}>{s.time}</span>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ── SOLICITUDES SCREEN ── */
+function SolicitudesScreen() {
+  const [tab, setTab] = useState('horas');
+  const TABS = [
+    { id:'coberturas', label:'Coberturas' },
+    { id:'horas',      label:'Horas',   badge:12 },
+    { id:'ausencias',  label:'Ausencias' },
+  ];
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100%'}}>
+      {/* Title */}
+      <div style={{padding:'20px 24px 0',flexShrink:0}}>
+        <h2 className="hd" style={{fontSize:'1.3rem',fontWeight:800,marginBottom:4}}>Solicitudes</h2>
+        <p style={{fontSize:'.78rem',color:'var(--fgm)'}}>Gestiona tus asignaciones, horas y ausencias.</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="sol-tabs">
+        {TABS.map(t => (
+          <button key={t.id} className={`sol-tab ${tab===t.id?'active':''}`} onClick={() => setTab(t.id)}>
+            {t.label}
+            {t.badge && <span className="sol-badge">{t.badge}</span>}
+          </button>
+        ))}
+      </div>
+
+      {/* Stats row */}
+      {tab === 'horas' && (
+        <div className="sol-stats-row">
+          {[['TOTAL','67','var(--fg)'],['PENDIENTE','12','#f59e0b'],['APROBADO','53','#10b981'],['RECHAZADO','0','var(--fgs)'],['SOLICITADO','1','#7c3aed']].map(([l,v,c]) => (
+            <div key={l} className="sol-stat">
+              <div className="sol-stat-lbl">{l}</div>
+              <div className="sol-stat-val" style={{color:c}}>{v}</div>
+            </div>
+          ))}
+          <div className="sol-divider" />
+          {[['NO SOLICITADAS','12','#f59e0b'],['SOLICITADA HOY','0','var(--fgs)']].map(([l,v,c]) => (
+            <div key={l} className="sol-stat">
+              <div className="sol-stat-lbl">{l}</div>
+              <div className="sol-stat-val" style={{color:c}}>{v}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* List */}
+      <div className="sol-list">
+        {tab === 'horas' && HORAS.map((item, i) => {
+          const showDate = i===0 || HORAS[i-1].date !== item.date;
+          return (
+            <React.Fragment key={item.id}>
+              {showDate && <div className="sol-date-group">📅 {item.date}</div>}
+              <div className="sol-item">
+                <div className="sol-item-icon" style={{background:'rgba(6,182,212,.15)',color:'#06b6d4'}}>⏱</div>
+                <div style={{flex:1}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
+                    <span style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,fontSize:'.85rem'}}>{item.label}</span>
+                    <span className="badge-plan status-badge">PLAN</span>
+                  </div>
+                  <span style={{fontSize:'.75rem',color:'var(--fgm)'}}>{item.range}</span>
+                </div>
+                <span style={{fontSize:'.8rem',fontWeight:700,color:'var(--fg)',marginRight:12}}>{item.dur}</span>
+                <span className="badge-warn status-badge">Pendiente</span>
+              </div>
+            </React.Fragment>
+          );
+        })}
+
+        {tab === 'coberturas' && COBERTURAS.map((item, i) => {
+          const showDate = i===0 || COBERTURAS[i-1].date !== item.date;
+          return (
+            <React.Fragment key={item.id}>
+              {showDate && <div className="sol-date-group">📅 {item.date} <span style={{fontWeight:400,textTransform:'none',letterSpacing:0,color:'var(--fgm)',fontSize:'.7rem'}}>1 cobertura</span></div>}
+              <div className="sol-item">
+                <div className="sol-item-icon" style={{background:'rgba(124,58,237,.15)',color:'#7c3aed'}}>📋</div>
+                <div style={{flex:1}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
+                    <span style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,fontSize:'.85rem'}}>{item.role}</span>
+                    <span className={`status-badge ${item.tag==='completa'?'badge-plan':'badge-warn'}`}>{item.tag.toUpperCase()}</span>
+                  </div>
+                  <span style={{fontSize:'.75rem',color:'var(--fgm)'}}>Solicitado por <strong style={{color:'var(--fg)'}}>{item.createdBy}</strong> · {item.range} · {item.dias}</span>
+                </div>
+                <button style={{background:'#10b981',border:'none',borderRadius:8,padding:'7px 16px',color:'#fff',fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,fontSize:'.78rem',cursor:'pointer'}}>Aceptar</button>
+              </div>
+            </React.Fragment>
+          );
+        })}
+
+        {(tab === 'equipos' || tab === 'ausencias') && (
+          <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',flex:1,color:'var(--fgs)',gap:12,paddingTop:60}}>
+            <div style={{fontSize:'2rem',opacity:.3}}>📭</div>
+            <p style={{fontSize:'.85rem'}}>No hay {tab === 'equipos' ? 'equipos' : 'ausencias'} registradas</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── EQUIPOS SCREEN ── */
+const PROYECTOS = [
+  { id:'PRY_001', name:'App Registro Horas',   cliente:'Cliente Interno',   inicio:'1 ene 2025',  entrega:'30 jun 2025',
+    members:[{name:'Ana',role:'Desarrollador Full Stack'},{name:'Carlos',role:'Líder Técnico'},{name:'Carlos',role:'Desarrollador Full Stack'}] },
+  { id:'PRY_002', name:'Sitio Web Corporativo', cliente:'Tech Solutions SPA',inicio:'15 mar 2025', entrega:'No definido',
+    members:[{name:'Carlos',role:'Líder Técnico'},{name:'Ana',role:'Desarrollador Full Stack'}] },
+  { id:'PRY_003', name:'Proyecto Atun',         cliente:'Bligtes',           inicio:'1 abr 2026',  entrega:'31 dic 2026',
+    members:[{name:'Carlos',role:'Líder Técnico'},{name:'Ana',role:'Desarrollador Full Stack'},{name:'Luis',role:'Técnico'}] },
+];
+const PC = ['#7c3aed','#10b981','#db2777','#f59e0b','#06b6d4'];
+
+function EquiposScreen() {
+  const [modal, setModal] = useState(null);
+  return (
+    <div className="screen">
+      <div style={{marginBottom:24}}>
+        <h2 className="hd" style={{fontSize:'1.3rem',fontWeight:800,marginBottom:4}}>Mis Equipos de Trabajo</h2>
+        <p style={{fontSize:'.78rem',color:'var(--fgm)'}}>Selecciona un proyecto para ver los miembros de tu equipo.</p>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:16}}>
+        {PROYECTOS.map((p,pi) => (
+          <div key={p.id} style={{background:'var(--bg-card)',border:'1px solid var(--bsub)',borderRadius:12,padding:20,display:'flex',flexDirection:'column',gap:14}}>
+            <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between'}}>
+              <div>
+                <p style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:800,fontSize:'1rem',marginBottom:6}}>{p.name}</p>
+                <span style={{fontSize:'.63rem',fontWeight:700,padding:'2px 8px',borderRadius:100,background:PC[pi]+'20',color:PC[pi]}}>{p.id}</span>
+              </div>
+              <div style={{width:32,height:32,borderRadius:8,background:PC[pi]+'18',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'.9rem',flexShrink:0}}>📁</div>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+              {[['Cliente',p.cliente],['Entrega',p.entrega]].map(([l,v])=>(
+                <div key={l} style={{background:'var(--bg-deep)',borderRadius:8,padding:'8px 10px'}}>
+                  <p style={{fontSize:'.58rem',fontWeight:700,color:'var(--fgs)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:2}}>{l}</p>
+                  <p style={{fontSize:'.78rem',fontWeight:600}}>{v}</p>
+                </div>
+              ))}
+            </div>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div style={{display:'flex'}}>
+                {p.members.slice(0,4).map((m,mi)=>(
+                  <div key={mi} style={{marginLeft:mi>0?-8:0,width:26,height:26,borderRadius:'50%',background:PC[mi%PC.length],display:'flex',alignItems:'center',justifyContent:'center',fontSize:'.65rem',fontWeight:800,color:'#fff',border:'2px solid var(--bg-card)',fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{m.name[0]}</div>
+                ))}
+              </div>
+              <button onClick={()=>setModal(p)} style={{background:'none',border:'none',color:'var(--primary)',fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,fontSize:'.78rem',cursor:'pointer'}}>Ver detalles →</button>
+            </div>
+          </div>
+        ))}
+      </div>
+      {modal && (
+        <div style={{position:'fixed',inset:0,zIndex:300,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,.65)',backdropFilter:'blur(4px)'}} onClick={e=>e.target===e.currentTarget&&setModal(null)}>
+          <div style={{background:'var(--bg-card)',border:'1px solid var(--border)',borderRadius:14,padding:28,width:440,boxShadow:'0 40px 80px rgba(0,0,0,.6)'}}>
+            <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:16}}>
+              <div>
+                <h3 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:800,fontSize:'1.05rem',marginBottom:6}}>{modal.name}</h3>
+                <span style={{fontSize:'.63rem',fontWeight:700,padding:'2px 8px',borderRadius:100,background:'rgba(6,182,212,.15)',color:'#06b6d4'}}>{modal.id}</span>
+              </div>
+              <button onClick={()=>setModal(null)} style={{background:'none',border:'none',color:'var(--fgm)',cursor:'pointer',fontSize:'1.4rem',lineHeight:1}}>×</button>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:20}}>
+              {[['Cliente',modal.cliente],['Fecha Inicio',modal.inicio],['Fecha Entrega',modal.entrega]].map(([l,v])=>(
+                <div key={l} style={{background:'var(--bg-deep)',borderRadius:8,padding:'9px 10px'}}>
+                  <p style={{fontSize:'.58rem',fontWeight:700,color:'var(--fgs)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:3}}>{l}</p>
+                  <p style={{fontSize:'.78rem',fontWeight:600}}>{v}</p>
+                </div>
+              ))}
+            </div>
+            <p style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,fontSize:'.85rem',marginBottom:12,display:'flex',alignItems:'center',gap:6}}>
+              <span>👥</span> Integrantes del Proyecto ({modal.members.length})
+            </p>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:20}}>
+              {modal.members.map((m,i)=>(
+                <div key={i} style={{display:'flex',alignItems:'center',gap:10,background:'var(--bg-deep)',borderRadius:8,padding:'10px 12px'}}>
+                  <div style={{width:30,height:30,borderRadius:'50%',background:PC[i%PC.length],display:'flex',alignItems:'center',justifyContent:'center',fontSize:'.7rem',fontWeight:800,color:'#fff',flexShrink:0,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{m.name[0]}</div>
+                  <div><p style={{fontWeight:700,fontSize:'.82rem'}}>{m.name}</p><p style={{fontSize:'.68rem',color:'var(--fgm)'}}>{m.role}</p></div>
+                </div>
+              ))}
+            </div>
+            <button onClick={()=>setModal(null)} style={{width:'100%',background:'var(--primary)',border:'none',borderRadius:9,padding:'11px',color:'#fff',fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,fontSize:'.85rem',cursor:'pointer'}}>Cerrar Detalles</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── APP ── */
+const var_fg = '#f0f2f9';
+
+function App() {
+  const [screen, setScreen] = useState('resumen');
+  const titles = { resumen:'Bienvenido al Panel', calendario:'Bienvenido al Panel', solicitudes:'Bienvenido al Panel', equipos:'Bienvenido al Panel' };
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',height:'100vh',overflow:'hidden'}}>
+      {/* Topbar */}
+      <div className="topbar">
+        <a href="Schedule - Landing.html" className="topbar-logo">
+          <span className="topbar-logo-dot"></span>
+          Schedule
+        </a>
+        <div style={{width:1,height:28,background:'var(--bsub)',flexShrink:0}} />
+        <span className="topbar-section">Empresa Demo</span>
+        <div style={{flex:1}} />
+        <span style={{fontSize:'.75rem',color:'var(--fgs)'}}>Jue, 24 abr 2026</span>
+        <div style={{width:1,height:28,background:'var(--bsub)',flexShrink:0}} />
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <div style={{width:30,height:30,borderRadius:'50%',background:'var(--primary)',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:800,fontSize:'.75rem',color:'#fff',flexShrink:0}}>AA</div>
+          <span style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,fontSize:'.82rem'}}>Ana</span>
+        </div>
+        <div style={{width:1,height:28,background:'var(--bsub)',flexShrink:0}} />
+        <button className="logout-btn">⎋ Cerrar Sesión</button>
+      </div>
+
+      {/* Main layout */}
+      <div className="layout">
+        <LeftSidebar />
+
+        <div className="center" style={{background:'var(--bg)'}}>
+          {screen === 'resumen'    && <ResumeScreen />}
+          {screen === 'equipos'    && <EquiposScreen />}
+          {screen === 'calendario' && <CalendarScreen />}
+          {screen === 'solicitudes' && <SolicitudesScreen />}
+          {screen !== 'resumen' && screen !== 'calendario' && screen !== 'solicitudes' && screen !== 'equipos' && (
+            <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--fgs)',flexDirection:'column',gap:12}}>
+              <div style={{fontSize:'2rem',opacity:.3}}>🚧</div>
+              <p>Pantalla en construcción</p>
+            </div>
+          )}
+        </div>
+
+        <RightPanel screen={screen} setScreen={setScreen} />
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

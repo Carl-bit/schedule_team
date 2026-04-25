@@ -586,6 +586,7 @@ export default function InformePanel() {
                         </div>
                     </div>
 
+
                     {/* Navigation arrows */}
                     <div className="flex items-center justify-between">
                         <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer">

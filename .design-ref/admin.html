@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schedule — Admin Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+:root {
+  --bg:         oklch(0.1358 0.0163 262.7113);
+  --bg-deep:    oklch(0.1074 0.0120 261.1111);
+  --bg-card:    oklch(0.1573 0.0228 265.6559);
+  --bg-card2:   oklch(0.1800 0.0300 265.0000);
+  --border:     oklch(0.2800 0.0369 259.9740);
+  --border-sub: oklch(0.2200 0.0280 260.0000);
+  --primary:    oklch(0.5424 0.2454 293.0160);
+  --primary-dim:oklch(0.4865 0.2423 291.8661);
+  --primary-fg: oklch(0.9838 0.0035 247.8583);
+  --primary-glow:oklch(0.5424 0.2454 293.0160 / 0.22);
+  --accent-soft:oklch(0.2302 0.0714 298.2794);
+  --fg:         oklch(0.9838 0.0035 247.8583);
+  --fg-muted:   oklch(0.7107 0.0351 256.7877);
+  --fg-subtle:  oklch(0.4800 0.0300 257.0000);
+  --success:    oklch(0.6983 0.1337 165.4626);
+  --warning:    oklch(0.8336 0.1186 88.1463);
+  --r: 0.75rem;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--fg);font-family:'Inter',sans-serif;height:100vh;overflow:hidden;display:flex;}
+::-webkit-scrollbar{width:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:100px;}
+</style>
+</head>
+<body>
+<div id="root" style="display:flex;width:100%;height:100vh;overflow:hidden;"></div>
+
+<script type="text/babel">
+const { useState, useRef } = React;
+
+/* ── SEED DATA ── */
+const TEAM_COLORS = [
+  '#7c3aed','#0ea5e9','#10b981','#f59e0b','#ef4444','#ec4899','#8b5cf6','#14b8a6',
+];
+
+const INITIAL_TEAMS = [
+  {
+    id: 't1', name: 'Equipo Alfa', color: '#7c3aed', icon: '⚡',
+    leader: 'Carlos Mendez',
+    members: [
+      { id: 'e1', name: 'Ana García',   role: 'Técnico',      shift: 'Mañana',  hours: 38, status: 'active' },
+      { id: 'e2', name: 'Luis Mora',    role: 'Operario',     shift: 'Tarde',   hours: 32, status: 'active' },
+      { id: 'e3', name: 'Sofía Reyes',  role: 'Analista',     shift: 'Noche',   hours: 40, status: 'review' },
+    ],
+  },
+  {
+    id: 't2', name: 'Equipo Beta', color: '#0ea5e9', icon: '🌊',
+    leader: 'Laura Vega',
+    members: [
+      { id: 'e4', name: 'Marco Silva',  role: 'Supervisor',   shift: 'Mañana',  hours: 40, status: 'active' },
+      { id: 'e5', name: 'Diana Cruz',   role: 'Operario',     shift: 'Mañana',  hours: 35, status: 'active' },
+      { id: 'e6', name: 'Pablo Ruiz',   role: 'Técnico',      shift: 'Tarde',   hours: 28, status: 'absent' },
+      { id: 'e7', name: 'Carla Ríos',   role: 'Administrativo',shift:'Flexible', hours: 42, status: 'active' },
+    ],
+  },
+  {
+    id: 't3', name: 'Equipo Gamma', color: '#10b981', icon: '🌿',
+    leader: 'José Torres',
+    members: [
+      { id: 'e8', name: 'Marta López',  role: 'Coordinador',  shift: 'Mañana',  hours: 36, status: 'active' },
+      { id: 'e9', name: 'Raúl Díaz',    role: 'Técnico',      shift: 'Noche',   hours: 40, status: 'active' },
+    ],
+  },
+];
+
+const STATUS_MAP = {
+  active:  { label: 'Activo',   bg: 'oklch(0.6983 0.1337 165.4626 / 0.12)', color: 'oklch(0.6983 0.1337 165.4626)' },
+  review:  { label: 'Revisión', bg: 'oklch(0.8336 0.1186 88.1463  / 0.12)', color: 'oklch(0.8336 0.1186 88.1463)'  },
+  absent:  { label: 'Ausente',  bg: 'oklch(0.6 0.13 25 / 0.12)',            color: 'oklch(0.65 0.13 25)'            },
+};
+
+/* ── UTILS ── */
+const initials = (name) => name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+
+/* ── COMPONENTS ── */
+
+function Logo() {
+  return (
+    <a href="Schedule - Landing.html" style={{ display:'flex', alignItems:'center', gap:8, textDecoration:'none',
+      fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:'1.1rem', color:'var(--fg)' }}>
+      <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--primary)', boxShadow:'0 0 10px var(--primary)' }} />
+      Schedule
+    </a>
+  );
+}
+
+function NavItem({ icon, label, active, onClick }) {
+  return (
+    <button onClick={onClick} style={{
+      display:'flex', alignItems:'center', gap:10, padding:'9px 12px',
+      borderRadius:8, fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:600,
+      fontSize:'0.82rem', border:'none', cursor:'pointer', width:'100%', textAlign:'left',
+      background: active ? 'oklch(0.5424 0.2454 293.0160 / 0.14)' : 'transparent',
+      color: active ? 'var(--primary)' : 'var(--fg-muted)',
+      transition:'background 0.2s, color 0.2s',
+    }}>
+      <span style={{ fontSize:'1rem', width:18, textAlign:'center' }}>{icon}</span>
+      {label}
+    </button>
+  );
+}
+
+function Avatar({ name, color, size = 32 }) {
+  return (
+    <div style={{
+      width:size, height:size, borderRadius:'50%', flexShrink:0,
+      background: color || 'linear-gradient(135deg,var(--primary),oklch(0.6983 0.1337 165.4626))',
+      display:'flex', alignItems:'center', justifyContent:'center',
+      fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800,
+      fontSize: size * 0.35, color:'#fff',
+    }}>
+      {initials(name)}
+    </div>
+  );
+}
+
+function Badge({ status }) {
+  const s = STATUS_MAP[status] || STATUS_MAP.active;
+  return (
+    <span style={{
+      padding:'3px 9px', borderRadius:100, fontSize:'0.68rem', fontWeight:700,
+      background: s.bg, color: s.color,
+    }}>{s.label}</span>
+  );
+}
+
+function StatCard({ label, value, sub, accent }) {
+  return (
+    <div style={{
+      background:'var(--bg-card)', border:'1px solid var(--border-sub)',
+      borderRadius:'var(--r)', padding:'16px 18px',
+    }}>
+      <p style={{ fontSize:'0.65rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.07em', color:'var(--fg-subtle)', marginBottom:6 }}>{label}</p>
+      <p style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:'1.8rem', color: accent || 'var(--fg)', marginBottom:2 }}>{value}</p>
+      <p style={{ fontSize:'0.72rem', color:'var(--fg-subtle)' }}>{sub}</p>
+    </div>
+  );
+}
+
+/* ── TEAM EDIT PANEL ── */
+function TeamEditPanel({ team, onClose, onSave }) {
+  const [name, setName] = useState(team.name);
+  const [color, setColor] = useState(team.color);
+  const [icon, setIcon] = useState(team.icon);
+  const [leader, setLeader] = useState(team.leader);
+  const ICONS = ['⚡','🌊','🌿','🔥','💎','🎯','🚀','⚙️','🌟','🦁'];
+
+  return (
+    <div style={{
+      position:'fixed', inset:0, zIndex:200,
+      display:'flex', alignItems:'center', justifyContent:'center',
+      background:'oklch(0 0 0 / 0.6)', backdropFilter:'blur(6px)',
+    }} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{
+        background:'var(--bg-card)', border:'1px solid var(--border)',
+        borderRadius:'1.25rem', width:420, padding:28,
+        boxShadow:'0 40px 80px oklch(0 0 0 / 0.6)',
+      }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
+          <h3 style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:'1.1rem' }}>Personalizar equipo</h3>
+          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--fg-muted)', cursor:'pointer', fontSize:'1.2rem' }}>×</button>
+        </div>
+
+        {/* Preview */}
+        <div style={{ background:'var(--bg-deep)', borderRadius:'var(--r)', padding:16, marginBottom:20, display:'flex', alignItems:'center', gap:14 }}>
+          <div style={{ width:48, height:48, borderRadius:12, background:color, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.4rem', flexShrink:0 }}>
+            {icon}
+          </div>
+          <div>
+            <p style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'0.95rem' }}>{name || 'Nombre del equipo'}</p>
+            <p style={{ fontSize:'0.75rem', color:'var(--fg-muted)' }}>Líder: {leader || '—'}</p>
+          </div>
+        </div>
+
+        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+          {/* Name */}
+          <div>
+            <label style={{ fontSize:'0.78rem', fontWeight:600, color:'var(--fg-muted)', display:'block', marginBottom:6 }}>Nombre del equipo</label>
+            <input value={name} onChange={e => setName(e.target.value)} style={{
+              width:'100%', background:'var(--bg-deep)', border:'1px solid var(--border)',
+              borderRadius:'var(--r)', padding:'9px 12px', color:'var(--fg)', fontSize:'0.875rem',
+              outline:'none', fontFamily:"'Inter',sans-serif",
+            }} />
+          </div>
+
+          {/* Leader */}
+          <div>
+            <label style={{ fontSize:'0.78rem', fontWeight:600, color:'var(--fg-muted)', display:'block', marginBottom:6 }}>Líder del equipo</label>
+            <input value={leader} onChange={e => setLeader(e.target.value)} style={{
+              width:'100%', background:'var(--bg-deep)', border:'1px solid var(--border)',
+              borderRadius:'var(--r)', padding:'9px 12px', color:'var(--fg)', fontSize:'0.875rem',
+              outline:'none', fontFamily:"'Inter',sans-serif",
+            }} />
+          </div>
+
+          {/* Color */}
+          <div>
+            <label style={{ fontSize:'0.78rem', fontWeight:600, color:'var(--fg-muted)', display:'block', marginBottom:8 }}>Color del equipo</label>
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+              {TEAM_COLORS.map(c => (
+                <button key={c} onClick={() => setColor(c)} style={{
+                  width:28, height:28, borderRadius:'50%', background:c, border:'none', cursor:'pointer',
+                  outline: color === c ? `3px solid ${c}` : '3px solid transparent',
+                  outlineOffset: 2, transition:'outline 0.15s', transform: color===c ? 'scale(1.15)' : 'scale(1)',
+                }} />
+              ))}
+              <label style={{ width:28, height:28, borderRadius:'50%', overflow:'hidden', cursor:'pointer', position:'relative' }}>
+                <input type="color" value={color} onChange={e => setColor(e.target.value)} style={{ width:'200%', height:'200%', position:'absolute', top:'-50%', left:'-50%', cursor:'pointer' }} />
+              </label>
+            </div>
+          </div>
+
+          {/* Icon */}
+          <div>
+            <label style={{ fontSize:'0.78rem', fontWeight:600, color:'var(--fg-muted)', display:'block', marginBottom:8 }}>Icono del equipo</label>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+              {ICONS.map(ic => (
+                <button key={ic} onClick={() => setIcon(ic)} style={{
+                  width:36, height:36, borderRadius:8, border:`1px solid ${icon===ic ? 'var(--primary)' : 'var(--border)'}`,
+                  background: icon===ic ? 'oklch(0.5424 0.2454 293.0160 / 0.12)' : 'var(--bg-deep)',
+                  cursor:'pointer', fontSize:'1rem', transition:'all 0.15s',
+                }}>
+                  {ic}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display:'flex', gap:10, marginTop:24 }}>
+          <button onClick={onClose} style={{
+            flex:1, background:'transparent', color:'var(--fg-muted)', border:'1px solid var(--border)',
+            borderRadius:'var(--r)', padding:'10px', fontFamily:"'Plus Jakarta Sans',sans-serif",
+            fontWeight:600, fontSize:'0.875rem', cursor:'pointer',
+          }}>Cancelar</button>
+          <button onClick={() => onSave({ name, color, icon, leader })} style={{
+            flex:2, background:'var(--primary)', color:'var(--primary-fg)', border:'none',
+            borderRadius:'var(--r)', padding:'10px', fontFamily:"'Plus Jakarta Sans',sans-serif",
+            fontWeight:700, fontSize:'0.875rem', cursor:'pointer',
+          }}>Guardar cambios</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── OVERVIEW PANEL ── */
+function OverviewPanel({ teams, onNav }) {
+  const allMembers = teams.flatMap(t => t.members);
+  const active = allMembers.filter(m => m.status === 'active').length;
+  const absent = allMembers.filter(m => m.status === 'absent').length;
+  const review = allMembers.filter(m => m.status === 'review').length;
+  const totalHours = allMembers.reduce((s, m) => s + m.hours, 0);
+
+  return (
+    <div style={{ padding:'28px 32px', overflowY:'auto', height:'100%' }}>
+      <div style={{ marginBottom:28 }}>
+        <p style={{ fontSize:'0.72rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.1em', color:'var(--fg-subtle)', marginBottom:4 }}>Panel de administración</p>
+        <h1 style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:'1.6rem' }}>Resumen general</h1>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:28 }}>
+        <StatCard label="Total equipos"     value={teams.length}        sub="configurados"        accent="var(--primary)" />
+        <StatCard label="Trabajadores"      value={allMembers.length}   sub={`${active} activos`} accent="var(--fg)" />
+        <StatCard label="Horas sem. total"  value={totalHours}          sub="acumuladas"          accent="oklch(0.6983 0.1337 165.4626)" />
+        <StatCard label="Por atender"       value={review + absent}     sub="solicitudes"         accent="var(--warning)" />
+      </div>
+
+      {/* Teams overview */}
+      <h2 style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'1rem', marginBottom:14 }}>Equipos</h2>
+      <div style={{ display:'flex', flexDirection:'column', gap:10, marginBottom:28 }}>
+        {teams.map(team => (
+          <div key={team.id} style={{
+            background:'var(--bg-card)', border:'1px solid var(--border-sub)', borderRadius:'var(--r)',
+            padding:'16px 18px', display:'flex', alignItems:'center', gap:16, cursor:'pointer',
+            transition:'border-color 0.2s',
+          }}
+          onClick={() => onNav('teams')}
+          onMouseEnter={e => e.currentTarget.style.borderColor='var(--border)'}
+          onMouseLeave={e => e.currentTarget.style.borderColor='var(--border-sub)'}
+          >
+            <div style={{ width:40, height:40, borderRadius:10, background:team.color, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.1rem', flexShrink:0 }}>
+              {team.icon}
+            </div>
+            <div style={{ flex:1 }}>
+              <p style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'0.9rem', marginBottom:2 }}>{team.name}</p>
+              <p style={{ fontSize:'0.75rem', color:'var(--fg-muted)' }}>Líder: {team.leader} · {team.members.length} miembros</p>
+            </div>
+            <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+              {team.members.filter(m => m.status === 'absent').length > 0 && (
+                <span style={{ fontSize:'0.7rem', fontWeight:700, padding:'3px 8px', borderRadius:100,
+                  background:'oklch(0.6 0.13 25 / 0.12)', color:'oklch(0.65 0.13 25)' }}>
+                  {team.members.filter(m => m.status === 'absent').length} ausente
+                </span>
+              )}
+              <div style={{ display:'flex' }}>
+                {team.members.slice(0,4).map((m,i) => (
+                  <div key={m.id} style={{ marginLeft: i === 0 ? 0 : -8 }}>
+                    <Avatar name={m.name} color={team.color + '99'} size={26} />
+                  </div>
+                ))}
+              </div>
+              <span style={{ color:'var(--fg-subtle)', fontSize:'1rem' }}>›</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Activity log */}
+      <h2 style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'1rem', marginBottom:14 }}>Actividad reciente</h2>
+      <div style={{ background:'var(--bg-card)', border:'1px solid var(--border-sub)', borderRadius:'var(--r)', overflow:'hidden' }}>
+        {[
+          { msg: 'Sofía Reyes registró entrada', time: 'Hace 12 min', team: 'Alfa', dot: 'var(--primary)' },
+          { msg: 'Pablo Ruiz marcó ausencia', time: 'Hace 34 min', team: 'Beta', dot: 'oklch(0.65 0.13 25)' },
+          { msg: 'Ana García completó turno', time: 'Hace 1h',    team: 'Alfa', dot: 'var(--success)' },
+          { msg: 'Marco Silva solicitó cobertura', time: 'Hace 2h', team: 'Beta', dot: 'var(--warning)' },
+          { msg: 'Raúl Díaz registró entrada', time: 'Hace 3h',  team: 'Gamma', dot: 'var(--primary)' },
+        ].map((a, i) => (
+          <div key={i} style={{
+            display:'flex', alignItems:'center', gap:14, padding:'13px 18px',
+            borderTop: i > 0 ? '1px solid var(--border-sub)' : 'none',
+          }}>
+            <div style={{ width:8, height:8, borderRadius:'50%', background:a.dot, flexShrink:0 }} />
+            <p style={{ flex:1, fontSize:'0.82rem', color:'var(--fg-muted)' }}>{a.msg}
+              <span style={{ marginLeft:6, fontSize:'0.72rem', color:'var(--fg-subtle)', fontWeight:600, background:'var(--bg-deep)', padding:'2px 7px', borderRadius:100 }}>{a.team}</span>
+            </p>
+            <span style={{ fontSize:'0.72rem', color:'var(--fg-subtle)', flexShrink:0 }}>{a.time}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── TEAMS PANEL ── */
+function TeamsPanel({ teams, onTeamsUpdate }) {
+  const [editing, setEditing] = useState(null);
+  const [search, setSearch] = useState('');
+  const [expandedTeam, setExpandedTeam] = useState(null);
+
+  const handleSave = (teamId, changes) => {
+    onTeamsUpdate(teams.map(t => t.id === teamId ? { ...t, ...changes } : t));
+    setEditing(null);
+  };
+
+  const removeMember = (teamId, memberId) => {
+    onTeamsUpdate(teams.map(t => t.id === teamId
+      ? { ...t, members: t.members.filter(m => m.id !== memberId) }
+      : t
+    ));
+  };
+
+  const filteredTeams = teams.map(t => ({
+    ...t,
+    members: t.members.filter(m =>
+      m.name.toLowerCase().includes(search.toLowerCase()) ||
+      m.role.toLowerCase().includes(search.toLowerCase())
+    ),
+  })).filter(t => search === '' || t.members.length > 0);
+
+  return (
+    <div style={{ padding:'28px 32px', overflowY:'auto', height:'100%' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+        <div>
+          <p style={{ fontSize:'0.72rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.1em', color:'var(--fg-subtle)', marginBottom:4 }}>Gestión de equipos</p>
+          <h1 style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:'1.6rem' }}>Equipos y trabajadores</h1>
+        </div>
+        <a href="Schedule - Worker Form.html" style={{
+          display:'flex', alignItems:'center', gap:8,
+          background:'var(--primary)', color:'var(--primary-fg)', textDecoration:'none',
+          border:'none', borderRadius:'var(--r)', padding:'10px 18px',
+          fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'0.85rem',
+          boxShadow:'0 0 24px var(--primary-glow)',
+        }}>
+          + Agregar trabajador
+        </a>
+      </div>
+
+      {/* Search */}
+      <div style={{ position:'relative', marginBottom:20 }}>
+        <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--fg-subtle)', fontSize:'0.9rem' }}>⌕</span>
+        <input
+          value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Buscar trabajador o rol..."
+          style={{ width:'100%', background:'var(--bg-card)', border:'1px solid var(--border-sub)', borderRadius:'var(--r)', padding:'10px 12px 10px 36px', color:'var(--fg)', fontSize:'0.875rem', outline:'none', fontFamily:"'Inter',sans-serif" }}
+        />
+      </div>
+
+      {/* Teams list */}
+      <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+        {filteredTeams.map(team => (
+          <div key={team.id} style={{
+            background:'var(--bg-card)', border:'1px solid var(--border-sub)',
+            borderRadius:'1rem', overflow:'hidden',
+          }}>
+            {/* Team header */}
+            <div style={{
+              display:'flex', alignItems:'center', gap:14, padding:'16px 18px',
+              borderBottom: expandedTeam === team.id ? '1px solid var(--border-sub)' : 'none',
+              cursor:'pointer',
+            }} onClick={() => setExpandedTeam(expandedTeam === team.id ? null : team.id)}>
+              <div style={{ width:42, height:42, borderRadius:11, background:team.color, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.2rem', flexShrink:0, boxShadow:`0 4px 20px ${team.color}55` }}>
+                {team.icon}
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <p style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:'1rem' }}>{team.name}</p>
+                  <span style={{ fontSize:'0.68rem', fontWeight:700, padding:'2px 8px', borderRadius:100,
+                    background: team.color + '22', color: team.color }}>
+                    {team.members.length} miembros
+                  </span>
+                </div>
+                <p style={{ fontSize:'0.75rem', color:'var(--fg-muted)', marginTop:2 }}>Líder: {team.leader}</p>
+              </div>
+              <button
+                onClick={e => { e.stopPropagation(); setEditing(team); }}
+                style={{
+                  background:'var(--bg-deep)', border:'1px solid var(--border)', borderRadius:8,
+                  padding:'7px 12px', color:'var(--fg-muted)', cursor:'pointer',
+                  fontSize:'0.78rem', fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:600,
+                  transition:'all 0.2s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor='var(--primary)'; e.currentTarget.style.color='var(--primary)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.color='var(--fg-muted)'; }}
+              >
+                ✏ Personalizar
+              </button>
+              <span style={{ color:'var(--fg-subtle)', fontSize:'0.8rem', transform: expandedTeam===team.id ? 'rotate(90deg)' : 'none', transition:'transform 0.2s' }}>›</span>
+            </div>
+
+            {/* Members table */}
+            {expandedTeam === team.id && (
+              <div>
+                {/* Header row */}
+                <div style={{
+                  display:'grid', gridTemplateColumns:'1.8fr 1fr 1fr 0.8fr 0.5fr',
+                  padding:'8px 18px', background:'var(--bg-deep)',
+                }}>
+                  {['Trabajador','Rol','Turno','Horas','Estado'].map(h => (
+                    <span key={h} style={{ fontSize:'0.65rem', fontWeight:700, color:'var(--fg-subtle)', textTransform:'uppercase', letterSpacing:'0.07em' }}>{h}</span>
+                  ))}
+                </div>
+                {team.members.map((member, i) => (
+                  <div key={member.id} style={{
+                    display:'grid', gridTemplateColumns:'1.8fr 1fr 1fr 0.8fr 0.5fr',
+                    padding:'11px 18px', borderTop:'1px solid var(--border-sub)',
+                    alignItems:'center', transition:'background 0.15s',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background='oklch(1 0 0 / 0.02)'}
+                  onMouseLeave={e => e.currentTarget.style.background='transparent'}
+                  >
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <Avatar name={member.name} color={team.color + 'bb'} size={30} />
+                      <span style={{ fontSize:'0.83rem', fontWeight:600, color:'var(--fg)' }}>{member.name}</span>
+                    </div>
+                    <span style={{ fontSize:'0.8rem', color:'var(--fg-muted)' }}>{member.role}</span>
+                    <span style={{ fontSize:'0.8rem', color:'var(--fg-muted)' }}>{member.shift}</span>
+                    <span style={{ fontSize:'0.83rem', fontWeight:600, color:'var(--fg)' }}>{member.hours}h</span>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <Badge status={member.status} />
+                      <button
+                        onClick={() => removeMember(team.id, member.id)}
+                        style={{ background:'none', border:'none', color:'var(--fg-subtle)', cursor:'pointer', fontSize:'0.9rem', lineHeight:1, padding:2,
+                          transition:'color 0.15s' }}
+                        onMouseEnter={e => e.currentTarget.style.color='oklch(0.65 0.13 25)'}
+                        onMouseLeave={e => e.currentTarget.style.color='var(--fg-subtle)'}
+                        title="Remover del equipo"
+                      >×</button>
+                    </div>
+                  </div>
+                ))}
+                {team.members.length === 0 && (
+                  <div style={{ padding:'24px', textAlign:'center', color:'var(--fg-subtle)', fontSize:'0.82rem' }}>
+                    Sin miembros coincidentes
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Edit panel modal */}
+      {editing && (
+        <TeamEditPanel
+          team={editing}
+          onClose={() => setEditing(null)}
+          onSave={(changes) => handleSave(editing.id, changes)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ── WORKERS PANEL ── */
+function WorkersPanel({ teams }) {
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const allMembers = teams.flatMap(t => t.members.map(m => ({ ...m, teamName: t.name, teamColor: t.color, teamIcon: t.icon })));
+  const filtered = allMembers.filter(m => {
+    const matchSearch = m.name.toLowerCase().includes(search.toLowerCase()) || m.role.toLowerCase().includes(search.toLowerCase());
+    const matchStatus = filterStatus === 'all' || m.status === filterStatus;
+    return matchSearch && matchStatus;
+  });
+
+  return (
+    <div style={{ padding:'28px 32px', overflowY:'auto', height:'100%' }}>
+      <div style={{ marginBottom:20 }}>
+        <p style={{ fontSize:'0.72rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.1em', color:'var(--fg-subtle)', marginBottom:4 }}>Directorio</p>
+        <h1 style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:800, fontSize:'1.6rem' }}>Todos los trabajadores</h1>
+      </div>
+
+      <div style={{ display:'flex', gap:10, marginBottom:20, flexWrap:'wrap' }}>
+        <div style={{ position:'relative', flex:1, minWidth:200 }}>
+          <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', color:'var(--fg-subtle)', fontSize:'0.9rem' }}>⌕</span>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." style={{
+            width:'100%', background:'var(--bg-card)', border:'1px solid var(--border-sub)',
+            borderRadius:'var(--r)', padding:'10px 12px 10px 36px', color:'var(--fg)', fontSize:'0.875rem', outline:'none', fontFamily:"'Inter',sans-serif"
+          }} />
+        </div>
+        <div style={{ display:'flex', gap:6 }}>
+          {[['all','Todos'],['active','Activos'],['review','Revisión'],['absent','Ausentes']].map(([val,lbl]) => (
+            <button key={val} onClick={() => setFilterStatus(val)} style={{
+              padding:'9px 14px', borderRadius:'var(--r)', fontSize:'0.78rem', fontFamily:"'Plus Jakarta Sans',sans-serif",
+              fontWeight:600, cursor:'pointer', border:'1px solid',
+              borderColor: filterStatus===val ? 'var(--primary)' : 'var(--border-sub)',
+              background: filterStatus===val ? 'oklch(0.5424 0.2454 293.0160 / 0.12)' : 'var(--bg-card)',
+              color: filterStatus===val ? 'var(--primary)' : 'var(--fg-muted)',
+            }}>{lbl}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ background:'var(--bg-card)', border:'1px solid var(--border-sub)', borderRadius:'var(--r)', overflow:'hidden' }}>
+        <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr 0.8fr 1fr', padding:'10px 18px', background:'var(--bg-deep)' }}>
+          {['Trabajador','Equipo','Rol','Turno','Horas','Estado'].map(h => (
+            <span key={h} style={{ fontSize:'0.65rem', fontWeight:700, color:'var(--fg-subtle)', textTransform:'uppercase', letterSpacing:'0.07em' }}>{h}</span>
+          ))}
+        </div>
+        {filtered.map((m,i) => (
+          <div key={m.id} style={{
+            display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr 0.8fr 1fr',
+            padding:'12px 18px', borderTop:'1px solid var(--border-sub)',
+            alignItems:'center', transition:'background 0.15s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.background='oklch(1 0 0 / 0.02)'}
+          onMouseLeave={e => e.currentTarget.style.background='transparent'}
+          >
+            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <Avatar name={m.name} color={m.teamColor + 'bb'} size={32} />
+              <span style={{ fontSize:'0.85rem', fontWeight:600 }}>{m.name}</span>
+            </div>
+            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+              <span style={{ fontSize:'0.9rem' }}>{m.teamIcon}</span>
+              <span style={{ fontSize:'0.78rem', color:'var(--fg-muted)' }}>{m.teamName}</span>
+            </div>
+            <span style={{ fontSize:'0.8rem', color:'var(--fg-muted)' }}>{m.role}</span>
+            <span style={{ fontSize:'0.8rem', color:'var(--fg-muted)' }}>{m.shift}</span>
+            <span style={{ fontSize:'0.83rem', fontWeight:600 }}>{m.hours}h</span>
+            <Badge status={m.status} />
+          </div>
+        ))}
+        {filtered.length === 0 && (
+          <div style={{ padding:32, textAlign:'center', color:'var(--fg-subtle)', fontSize:'0.85rem' }}>
+            No se encontraron trabajadores
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── MAIN APP ── */
+const NAV = [
+  { id:'overview', icon:'◉', label:'Resumen' },
+  { id:'teams',    icon:'⬡', label:'Equipos' },
+  { id:'workers',  icon:'◎', label:'Trabajadores' },
+];
+
+function App() {
+  const [view, setView] = useState('overview');
+  const [teams, setTeams] = useState(INITIAL_TEAMS);
+
+  return (
+    <div style={{ display:'flex', width:'100%', height:'100vh', overflow:'hidden' }}>
+      {/* SIDEBAR */}
+      <aside style={{
+        width:220, flexShrink:0, background:'var(--bg-deep)',
+        borderRight:'1px solid var(--border-sub)',
+        display:'flex', flexDirection:'column', padding:'20px 12px',
+        gap:4,
+      }}>
+        <div style={{ padding:'4px 4px 20px' }}>
+          <Logo />
+        </div>
+
+        <p style={{ fontSize:'0.6rem', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.1em', color:'var(--fg-subtle)', padding:'8px 12px 6px' }}>Principal</p>
+        {NAV.map(n => (
+          <NavItem key={n.id} icon={n.icon} label={n.label} active={view===n.id} onClick={() => setView(n.id)} />
+        ))}
+
+        <div style={{ marginTop:'auto', padding:'16px 0 0', borderTop:'1px solid var(--border-sub)' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px' }}>
+            <Avatar name="Admin Sistema" color="var(--primary)" size={32} />
+            <div>
+              <p style={{ fontFamily:"'Plus Jakarta Sans',sans-serif", fontWeight:700, fontSize:'0.8rem', lineHeight:1.2 }}>Admin</p>
+              <p style={{ fontSize:'0.68rem', color:'var(--fg-subtle)' }}>Sistema</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* MAIN */}
+      <main style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
+        {/* Topbar */}
+        <div style={{
+          height:56, borderBottom:'1px solid var(--border-sub)',
+          display:'flex', alignItems:'center', justifyContent:'space-between',
+          padding:'0 32px', flexShrink:0, background:'var(--bg)',
+        }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ fontSize:'0.82rem', color:'var(--fg-subtle)' }}>
+              {NAV.find(n => n.id === view)?.label}
+            </span>
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+            <span style={{ fontSize:'0.78rem', color:'var(--fg-subtle)' }}>Jueves, 24 abr 2026</span>
+            <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--success)', boxShadow:'0 0 6px var(--success)' }} title="Sistema en línea" />
+          </div>
+        </div>
+
+        {/* Content */}
+        <div style={{ flex:1, overflow:'hidden' }}>
+          {view === 'overview' && <OverviewPanel teams={teams} onNav={setView} />}
+          {view === 'teams'    && <TeamsPanel teams={teams} onTeamsUpdate={setTeams} />}
+          {view === 'workers'  && <WorkersPanel teams={teams} />}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

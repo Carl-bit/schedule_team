@@ -1,21 +1,19 @@
-/* El contenedor principal del Lider - 2 columnas (sin barra izquierda) */
+/* 2-column layout for Lider — wider right panel */
 .dashboardGrid {
     display: grid;
-    height: 100vh;
+    height: 100%;
     width: 100%;
-    padding: 1rem;
-    gap: 1rem;
-
-    /* 2 columnas:
-       - 1fr: Contenido principal toma todo el espacio sobrante
-       - 300px: Panel derecho fijo (perfil + menú)
-    */
-    grid-template-columns: 1fr 300px;
-
-    color: white;
+    background: var(--pr-bg);
+    color: var(--pr-fg);
+    grid-template-columns: 1fr 360px;
 }
 
-/* Responsive */
+@media (max-width: 1280px) {
+    .dashboardGrid {
+        grid-template-columns: 1fr 320px;
+    }
+}
+
 @media (max-width: 1024px) {
     .dashboardGrid {
         grid-template-columns: 1fr;

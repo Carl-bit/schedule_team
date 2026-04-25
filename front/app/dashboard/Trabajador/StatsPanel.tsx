@@ -148,24 +148,31 @@ export default function StatsPanel({ empleado_id = 'USER_ANA', labels = [] }: { 
     };
 
     return (
-        <div className="w-full h-full flex flex-col bg-[#0f1115]/80 overflow-hidden rounded-xl border border-gray-800/60 shadow-[0_0_40px_rgba(0,0,0,0.5)] backdrop-blur-md">
-            <div className="flex-1 p-5 overflow-y-auto custom-scrollbar flex flex-col gap-6">
+        <div className="w-full h-full flex flex-col overflow-hidden"
+            style={{ background: 'var(--pr-bg-deep)', borderRight: '1px solid var(--pr-bsub)' }}>
+            <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
 
                 {/* ESTADÍSTICAS */}
-                <div className="flex flex-col gap-3 relative">
+                <div className="flex flex-col gap-2 relative">
                     {isLoading && (
-                        <div className="absolute inset-0 bg-[#0f1115]/80 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl">
-                            <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                        <div className="absolute inset-0 z-10 flex items-center justify-center"
+                            style={{ background: 'rgba(15,19,32,0.85)' }}>
+                            <div className="w-6 h-6 border-2 rounded-full animate-spin"
+                                style={{ borderColor: 'var(--pr-primary)', borderTopColor: 'transparent' }}></div>
                         </div>
                     )}
 
-                    <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-indigo-400" />
-                        Resumen del Mes
-                    </h4>
+                    <p className="text-xs font-extrabold uppercase tracking-[0.1em] flex items-center gap-2 px-5 pt-6 pb-3"
+                        style={{ color: 'var(--pr-fgs)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+                        <Clock className="w-4 h-4" />
+                        Resumen del mes
+                    </p>
 
-                    <div className="flex flex-col gap-2 mb-1 bg-[#1a1c20] p-3 rounded-xl border border-gray-800/80">
-                        <label className="text-[10px] text-gray-400 font-bold uppercase">Rango de Filtro</label>
+                    <div className="mx-4 mb-3 p-3.5 rounded-xl"
+                        style={{ background: 'var(--pr-bg-card)', border: '1px solid var(--pr-bsub)' }}>
+                        <label className="text-[10px] font-bold uppercase block mb-2" style={{ color: 'var(--pr-fgs)' }}>
+                            Rango de Filtro
+                        </label>
                         <StatsDateRangePicker
                             startDate={filterStartDate}
                             endDate={filterEndDate}
@@ -176,134 +183,154 @@ export default function StatsPanel({ empleado_id = 'USER_ANA', labels = [] }: { 
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-[#1a1c20] p-3 rounded-xl border border-gray-800/80 shadow-md flex flex-col items-center justify-center">
-                            <span className="text-[10px] text-gray-400 font-bold uppercase mb-1 text-center">Planificadas</span>
-                            <span className="text-xl font-black text-indigo-300">{Number(horasPlanificadas).toFixed(1).replace(/\.0$/, '')}h</span>
+                    <div className="grid grid-cols-2 gap-3 px-4 pb-3">
+                        <div className="p-4 rounded-xl"
+                            style={{ background: 'var(--pr-bg-card)', border: '1px solid var(--pr-bsub)' }}>
+                            <div className="text-[11px] font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--pr-fgs)' }}>
+                                Planificadas
+                            </div>
+                            <div className="text-2xl font-extrabold" style={{ color: 'var(--pr-primary)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+                                {Number(horasPlanificadas).toFixed(1).replace(/\.0$/, '')}h
+                            </div>
                         </div>
 
-                        <div className="bg-[#1a1c20] p-3 rounded-xl border border-gray-800/80 shadow-md flex flex-col items-center justify-center">
-                            <span className="text-[10px] text-gray-400 font-bold uppercase mb-1 text-center">Trabajadas</span>
-                            <span className="text-xl font-black text-emerald-400">{Number(horasTrabajadas).toFixed(1).replace(/\.0$/, '')}h</span>
+                        <div className="p-4 rounded-xl"
+                            style={{ background: 'var(--pr-bg-card)', border: '1px solid var(--pr-bsub)' }}>
+                            <div className="text-[11px] font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--pr-fgs)' }}>
+                                Trabajadas
+                            </div>
+                            <div className="text-2xl font-extrabold" style={{ color: 'var(--pr-success)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+                                {Number(horasTrabajadas).toFixed(1).replace(/\.0$/, '')}h
+                            </div>
                         </div>
+                    </div>
 
-                        <div className="bg-[#1a1c20] p-3 rounded-xl border border-gray-800/80 shadow-md flex flex-col items-center justify-center col-span-2">
-                            <span className="text-[10px] text-gray-400 font-bold uppercase mb-1 text-center">Por Revisar (Pendientes)</span>
-                            <span className="text-xl font-black text-amber-500">{Number(horasPendientes).toFixed(1).replace(/\.0$/, '')}h</span>
+                    <div className="mx-4 mb-3 p-4 rounded-xl"
+                        style={{ background: 'var(--pr-bg-card)', border: '1px solid var(--pr-bsub)' }}>
+                        <div className="text-[11px] font-bold uppercase tracking-wider mb-1.5" style={{ color: 'var(--pr-fgs)' }}>
+                            Por revisar (pendientes)
+                        </div>
+                        <div className="text-2xl font-extrabold" style={{ color: 'var(--pr-warn)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+                            {Number(horasPendientes).toFixed(1).replace(/\.0$/, '')}h
                         </div>
                     </div>
                 </div>
 
-                <div className="w-full h-px bg-gray-800/50"></div>
+                <div className="h-px mx-4" style={{ background: 'var(--pr-bsub)' }}></div>
 
                 {/* PRÓXIMOS EVENTOS */}
-                <div className="flex flex-col gap-3">
-                    <h4 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-amber-500" />
-                        Próximos Turnos
-                    </h4>
+                <div className="flex flex-col">
+                    <p className="text-xs font-extrabold uppercase tracking-[0.1em] flex items-center gap-2 px-5 pt-5 pb-3"
+                        style={{ color: 'var(--pr-fgs)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+                        <Calendar className="w-4 h-4" />
+                        Próximos turnos
+                    </p>
 
-                    <div className="flex flex-col gap-2 relative">
-                        <div className="absolute left-2.5 top-2 bottom-2 w-px bg-gray-800"></div>
+                    {plannedAssignments
+                        .filter(a => new Date(a.dateStr) >= new Date(new Date().setHours(0, 0, 0, 0)))
+                        .sort((a, b) => new Date(a.dateStr).getTime() - new Date(b.dateStr).getTime())
+                        .slice(0, 5)
+                        .map(a => {
+                            const eventDate = new Date(a.dateStr + "T12:00:00");
+                            const isToday = formatDateStr(eventDate) === formatDateStr(new Date());
+                            const dotColor = isToday ? 'var(--pr-warn)' : 'var(--pr-success)';
 
-                        {plannedAssignments
-                            .filter(a => new Date(a.dateStr) >= new Date(new Date().setHours(0, 0, 0, 0)))
-                            .sort((a, b) => new Date(a.dateStr).getTime() - new Date(b.dateStr).getTime())
-                            .slice(0, 5) // Mostrar los próximos 5
-                            .map(a => {
-                                const eventDate = new Date(a.dateStr + "T12:00:00");
-                                const isToday = formatDateStr(eventDate) === formatDateStr(new Date());
-
-                                return (
-                                    <div
-                                        key={'upcoming-' + a.id}
-                                        onClick={() => setSelectedDayDetails(a.dateStr)}
-                                        className="relative flex gap-3 pl-7 items-center group cursor-pointer"
-                                    >
-                                        <div className={`absolute left-1.5 w-2 h-2 rounded-full border-2 border-[#0f1115] shadow-sm z-10
-                      ${isToday ? 'bg-amber-500 ring-2 ring-amber-500/30' : 'bg-indigo-500'}
-                    `}></div>
-
-                                        <div className={`flex-1 p-2.5 rounded-lg border flex flex-col gap-0.5 transition-colors
-                       ${isToday ? 'bg-indigo-900/20 border-indigo-700/50' : 'bg-[#1a1c20] border-gray-800/60 group-hover:border-gray-500'}
-                    `}>
-                                            <span className={`text-[10px] uppercase font-bold tracking-wider ${isToday ? 'text-amber-400' : 'text-gray-400'}`}>
-                                                {isToday ? 'HOY' : eventDate.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' })}
-                                            </span>
-                                            <span className="text-xs font-bold text-white group-hover:text-indigo-300 transition-colors">Turno Planificado</span>
-                                            <span className="text-[10px] text-gray-400 group-hover:text-white flex items-center gap-1 transition-colors">
-                                                <Clock className="w-3 h-3" /> Ver Detalle
-                                            </span>
+                            return (
+                                <div
+                                    key={'upcoming-' + a.id}
+                                    onClick={() => setSelectedDayDetails(a.dateStr)}
+                                    className="px-5 py-3 cursor-pointer transition-colors hover:bg-white/5"
+                                    style={{ borderTop: '1px solid var(--pr-bsub)' }}
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-2 h-2 rounded-full flex-shrink-0 mt-2"
+                                            style={{ background: dotColor }}></div>
+                                        <div>
+                                            <div className="text-sm font-bold" style={{ color: 'var(--pr-fg)' }}>
+                                                Turno Planificado
+                                            </div>
+                                            <div className="text-xs mt-0.5" style={{ color: 'var(--pr-fgm)' }}>
+                                                {isToday ? 'Hoy' : eventDate.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' })}
+                                                {a.hours > 0 ? ` · ${a.hours.toFixed(1).replace(/\.0$/, '')}h` : ''}
+                                            </div>
                                         </div>
                                     </div>
-                                )
-                            })
-                        }
+                                </div>
+                            );
+                        })
+                    }
 
-                        {plannedAssignments.filter(a => new Date(a.dateStr) >= new Date(new Date().setHours(0, 0, 0, 0))).length === 0 && !isLoading && (
-                            <div className="pl-7 text-xs text-gray-500 italic py-2">
-                                No tienes turnos próximos planificados.
-                            </div>
-                        )}
-                    </div>
+                    {plannedAssignments.filter(a => new Date(a.dateStr) >= new Date(new Date().setHours(0, 0, 0, 0))).length === 0 && !isLoading && (
+                        <div className="px-5 pb-3 text-xs italic" style={{ color: 'var(--pr-fgs)' }}>
+                            Sin turnos próximos.
+                        </div>
+                    )}
                 </div>
 
+                <div className="flex-1"></div>
             </div>
 
             {/* DETALLES DEL DÍA SELECCIONADO (Modal) */}
             {selectedDayDetails && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                    <div className="bg-[#1e2024] border border-gray-700 p-6 rounded-2xl shadow-2xl max-w-md w-full mx-4 flex flex-col">
-                        <div className="flex justify-between items-center mb-5 border-b border-gray-800 pb-4">
-                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                <Calendar className="w-5 h-5 text-indigo-400" />
+                <div className="fixed inset-0 z-[100] flex items-center justify-center backdrop-blur-sm" style={{ background: 'rgba(0,0,0,0.6)' }}>
+                    <div className="p-6 rounded-2xl max-w-md w-full mx-4 flex flex-col"
+                        style={{ background: 'var(--pr-bg-card)', border: '1px solid var(--pr-border)', boxShadow: '0 24px 60px rgba(0,0,0,.6)' }}>
+                        <div className="flex justify-between items-center mb-5 pb-4" style={{ borderBottom: '1px solid var(--pr-bsub)' }}>
+                            <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: 'var(--pr-fg)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+                                <Calendar className="w-5 h-5" style={{ color: 'var(--pr-primary)' }} />
                                 Eventos del {new Date(selectedDayDetails + "T12:00:00").toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
                             </h3>
                             <button
                                 onClick={() => setSelectedDayDetails(null)}
-                                className="text-gray-400 hover:text-white transition-colors cursor-pointer bg-gray-800 hover:bg-gray-700 rounded-full p-1"
+                                className="rounded-full p-1.5 transition-colors hover:text-white cursor-pointer"
+                                style={{ background: 'var(--pr-bsub)', color: 'var(--pr-fgm)' }}
                             >
-                                <X className="w-5 h-5" />
+                                <X className="w-4 h-4" />
                             </button>
                         </div>
 
                         <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2 pb-2">
                             {assignments.filter(a => a.dateStr === selectedDayDetails).map(assignment => {
                                 const isWorked = assignment.labelId === 'WORKED_HOUR';
-                                const color = isWorked ? 'bg-emerald-600' : 'bg-cyan-600';
+                                const accent = isWorked ? 'var(--pr-success)' : 'var(--pr-cyan)';
                                 const name = isWorked ? 'Registro (BD)' : 'Planificado (BD)';
-                                const timeStr = isWorked ? 'Visualizado según BD' : 'Visualizado según BD';
+                                const timeStr = 'Visualizado según BD';
 
                                 return (
-                                    <div key={'detail-' + assignment.id} className="relative flex items-center gap-3 p-3 bg-black/40 rounded-xl border border-gray-700/50 group hover:border-gray-500 transition-colors">
-                                        <span className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${color} opacity-90`}></span>
+                                    <div key={'detail-' + assignment.id} className="relative flex items-center gap-3 p-3 rounded-xl transition-colors"
+                                        style={{ background: 'var(--pr-bg-deep)', border: '1px solid var(--pr-bsub)' }}>
+                                        <span className="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl"
+                                            style={{ background: accent }}></span>
 
-                                        <div className="flex flex-col flex-1 pl-4">
-                                            <span className="text-sm font-bold text-white mb-0.5">{name}</span>
-                                            <span className="text-[11px] text-gray-400 font-medium flex items-center gap-1.5">
-                                                <Clock className="w-3.5 h-3.5 text-indigo-400/80" />
+                                        <div className="flex flex-col flex-1 pl-3">
+                                            <span className="text-sm font-bold mb-0.5" style={{ color: 'var(--pr-fg)' }}>{name}</span>
+                                            <span className="text-[11px] font-medium flex items-center gap-1.5" style={{ color: 'var(--pr-fgm)' }}>
+                                                <Clock className="w-3.5 h-3.5" style={{ color: 'var(--pr-primary)' }} />
                                                 {timeStr}
                                             </span>
                                         </div>
 
                                         <div className="flex shrink-0">
                                             {assignment.status === 'pending' ? (
-                                                <div title="Pendiente de aprobación" className="flex items-center gap-1.5 bg-amber-500/10 text-amber-400 px-2.5 py-1 rounded-full text-[10px] font-bold border border-amber-500/20">
+                                                <div title="Pendiente" className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold"
+                                                    style={{ background: 'rgba(245,158,11,0.15)', color: 'var(--pr-warn)' }}>
                                                     <AlertCircle className="w-3 h-3" /> Pendiente
                                                 </div>
                                             ) : (
-                                                <div title="Aprobado" className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded-full text-[10px] font-bold border border-emerald-500/20">
+                                                <div title="Aprobado" className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold"
+                                                    style={{ background: 'rgba(16,185,129,0.15)', color: 'var(--pr-success)' }}>
                                                     <CheckCircle2 className="w-3 h-3" /> Aprobado
                                                 </div>
                                             )}
                                         </div>
                                     </div>
-                                )
+                                );
                             })}
                         </div>
 
-                        <div className="mt-4 pt-4 border-t border-gray-800 flex justify-end">
-                            <button onClick={() => setSelectedDayDetails(null)} className="px-5 py-2.5 rounded-xl text-sm font-bold bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors cursor-pointer">
+                        <div className="mt-4 pt-4 flex justify-end" style={{ borderTop: '1px solid var(--pr-bsub)' }}>
+                            <button onClick={() => setSelectedDayDetails(null)} className="px-5 py-2 rounded-xl text-sm font-bold transition-colors cursor-pointer hover:text-white"
+                                style={{ background: 'var(--pr-bsub)', color: 'var(--pr-fgm)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
                                 Cerrar
                             </button>
                         </div>

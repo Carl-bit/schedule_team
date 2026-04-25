@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schedule — Gestión de Equipos</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:          oklch(0.1358 0.0163 262.7113);
+  --bg-deep:     oklch(0.1074 0.0120 261.1111);
+  --bg-card:     oklch(0.1573 0.0228 265.6559);
+  --bg-card2:    oklch(0.1800 0.0300 265.0000);
+  --border:      oklch(0.2800 0.0369 259.9740);
+  --border-sub:  oklch(0.2200 0.0280 260.0000);
+  --primary:     oklch(0.5424 0.2454 293.0160);
+  --primary-dim: oklch(0.4865 0.2423 291.8661);
+  --primary-fg:  oklch(0.9838 0.0035 247.8583);
+  --primary-glow:oklch(0.5424 0.2454 293.0160 / 0.20);
+  --accent-soft: oklch(0.2302 0.0714 298.2794);
+  --fg:          oklch(0.9838 0.0035 247.8583);
+  --fg-muted:    oklch(0.7107 0.0351 256.7877);
+  --fg-subtle:   oklch(0.4800 0.0300 257.0000);
+  --success:     oklch(0.6983 0.1337 165.4626);
+  --warning:     oklch(0.8336 0.1186 88.1463);
+  --r: 0.75rem;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Inter', sans-serif;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+h1,h2,h3,h4,h5 { font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: -0.02em; }
+
+/* NAV */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 5vw; height: 64px;
+  background: oklch(0.1358 0.0163 262.7113 / 0.85);
+  border-bottom: 1px solid var(--border-sub);
+  backdrop-filter: blur(16px);
+  transition: background 0.3s;
+}
+.nav-logo {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 800; font-size: 1.2rem;
+  color: var(--fg); text-decoration: none;
+  display: flex; align-items: center; gap: 8px;
+}
+.nav-logo-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 10px var(--primary);
+}
+.nav-links { display: flex; gap: 32px; list-style: none; }
+.nav-links a {
+  color: var(--fg-muted); text-decoration: none; font-size: 0.875rem;
+  font-weight: 500; transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--fg); }
+.nav-cta {
+  background: var(--primary); color: var(--primary-fg);
+  border: none; border-radius: var(--r); padding: 8px 20px;
+  font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700;
+  font-size: 0.875rem; cursor: pointer; text-decoration: none;
+  transition: opacity 0.2s, transform 0.15s;
+}
+.nav-cta:hover { opacity: 0.88; transform: translateY(-1px); }
+
+/* HERO */
+.hero {
+  min-height: 100vh; padding-top: 64px;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; text-align: center;
+  padding-left: 5vw; padding-right: 5vw;
+  position: relative; overflow: hidden;
+}
+.hero-glow {
+  position: absolute; top: 10%; left: 50%; transform: translateX(-50%);
+  width: 700px; height: 500px;
+  background: radial-gradient(ellipse at center, oklch(0.5424 0.2454 293.0160 / 0.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(oklch(0.2800 0.0369 259.9740 / 0.3) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.2800 0.0369 259.9740 / 0.3) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 30%, transparent 100%);
+  pointer-events: none;
+}
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--accent-soft); border: 1px solid oklch(0.5424 0.2454 293.0160 / 0.4);
+  border-radius: 100px; padding: 5px 14px;
+  font-size: 0.75rem; font-weight: 600; color: var(--primary);
+  margin-bottom: 28px; letter-spacing: 0.04em; text-transform: uppercase;
+}
+.hero-eyebrow-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--primary); animation: pulse 2s infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+#tw-cursor{animation:blink .7s step-end infinite;font-style:normal;}
+@keyframes pulse {
+  0%,100% { opacity:1; transform: scale(1); }
+  50% { opacity:0.5; transform: scale(0.8); }
+}
+.hero h1 {
+  font-size: clamp(2.8rem, 6vw, 5rem);
+  font-weight: 800; line-height: 1.08;
+  color: var(--fg); max-width: 800px; margin-bottom: 24px;
+}
+.hero h1 em {
+  font-style: normal; color: var(--primary);
+}
+.hero p {
+  font-size: clamp(1rem, 2vw, 1.15rem); color: var(--fg-muted);
+  max-width: 540px; margin-bottom: 40px; line-height: 1.7;
+}
+.hero-actions { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-bottom: 80px; }
+.btn-primary {
+  background: var(--primary); color: var(--primary-fg);
+  border: none; border-radius: var(--r); padding: 14px 28px;
+  font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 0.95rem;
+  cursor: pointer; text-decoration: none;
+  box-shadow: 0 0 30px var(--primary-glow);
+  transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+.btn-primary:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 0 50px var(--primary-glow); }
+.btn-ghost {
+  background: transparent; color: var(--fg-muted);
+  border: 1px solid var(--border); border-radius: var(--r); padding: 14px 28px;
+  font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; font-size: 0.95rem;
+  cursor: pointer; text-decoration: none; transition: border-color 0.2s, color 0.2s;
+}
+.btn-ghost:hover { border-color: var(--primary); color: var(--fg); }
+
+/* HERO UI MOCKUP */
+.hero-mockup {
+  width: 100%; max-width: 900px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  overflow: hidden;
+  box-shadow: 0 40px 100px oklch(0 0 0 / 0.6), 0 0 0 1px var(--border);
+}
+.mockup-topbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px; background: var(--bg-deep);
+  border-bottom: 1px solid var(--border-sub);
+}
+.mockup-dot { width: 10px; height: 10px; border-radius: 50%; }
+.mockup-inner {
+  display: grid; grid-template-columns: 200px 1fr;
+  height: 380px;
+}
+.mockup-sidebar {
+  background: var(--bg-deep); border-right: 1px solid var(--border-sub);
+  padding: 16px 12px; display: flex; flex-direction: column; gap: 6px;
+}
+.m-nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 8px; font-size: 0.78rem;
+  font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600;
+  color: var(--fg-muted); cursor: default;
+}
+.m-nav-item.active {
+  background: oklch(0.5424 0.2454 293.0160 / 0.15);
+  color: var(--primary);
+}
+.m-nav-icon { width: 14px; height: 14px; border-radius: 3px; background: currentColor; opacity: 0.7; }
+.mockup-content { padding: 20px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
+.m-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.m-stat {
+  background: oklch(0.1358 0.0163 262.7113 / 0.8);
+  border: 1px solid var(--border-sub); border-radius: 10px;
+  padding: 12px; display: flex; flex-direction: column; gap: 4px;
+}
+.m-stat-label { font-size: 0.65rem; color: var(--fg-subtle); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.m-stat-val { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.4rem; font-weight: 800; }
+.m-stat-val.purple { color: var(--primary); }
+.m-stat-val.green  { color: var(--success); }
+.m-stat-val.warn   { color: var(--warning); }
+.m-table { background: oklch(0.1358 0.0163 262.7113 / 0.8); border: 1px solid var(--border-sub); border-radius: 10px; overflow: hidden; }
+.m-table-head { display: grid; grid-template-columns: 1.5fr 1fr 1fr 0.8fr; padding: 8px 14px; background: var(--bg-deep); }
+.m-table-head span { font-size: 0.6rem; font-weight: 700; color: var(--fg-subtle); text-transform: uppercase; letter-spacing: 0.06em; }
+.m-table-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr 0.8fr; padding: 8px 14px; border-top: 1px solid var(--border-sub); align-items: center; }
+.m-table-row span { font-size: 0.7rem; color: var(--fg-muted); }
+.m-avatar { width: 20px; height: 20px; border-radius: 50%; margin-right: 6px; display: inline-block; vertical-align: middle; }
+.m-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 0.6rem; font-weight: 700;
+}
+.badge-green { background: oklch(0.6983 0.1337 165.4626 / 0.15); color: var(--success); }
+.badge-warn  { background: oklch(0.8336 0.1186 88.1463  / 0.15); color: var(--warning); }
+.badge-purple{ background: oklch(0.5424 0.2454 293.0160 / 0.15); color: var(--primary); }
+
+/* SOCIAL PROOF */
+.social-proof {
+  text-align: center; padding: 40px 5vw;
+  border-top: 1px solid var(--border-sub); border-bottom: 1px solid var(--border-sub);
+}
+.social-proof p { font-size: 0.8rem; color: var(--fg-subtle); font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 24px; }
+.sp-stats { display: flex; gap: 60px; justify-content: center; flex-wrap: wrap; }
+.sp-stat { display: flex; flex-direction: column; gap: 4px; align-items: center; }
+.sp-stat-num { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 2rem; color: var(--fg); }
+.sp-stat-label { font-size: 0.8rem; color: var(--fg-muted); }
+
+/* SECTIONS */
+section { padding: 100px 5vw; }
+.section-eyebrow {
+  font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--primary); margin-bottom: 12px;
+}
+.section-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: clamp(1.8rem, 3.5vw, 2.8rem); font-weight: 800;
+  color: var(--fg); margin-bottom: 16px; max-width: 600px;
+}
+.section-sub {
+  font-size: 1rem; color: var(--fg-muted); max-width: 480px; line-height: 1.7;
+}
+
+/* FEATURES */
+.features { max-width: 1200px; margin: 0 auto; }
+.features-header { margin-bottom: 56px; }
+.features-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+}
+.feat-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 1.25rem; padding: 28px;
+  transition: border-color 0.25s, transform 0.2s;
+  position: relative; overflow: hidden;
+}
+.feat-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--primary-glow), transparent);
+  opacity: 0; transition: opacity 0.3s;
+}
+.feat-card:hover::before { opacity: 1; }
+.feat-card:hover { border-color: oklch(0.5424 0.2454 293.0160 / 0.5); transform: translateY(-3px); }
+.feat-icon {
+  width: 44px; height: 44px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; margin-bottom: 18px;
+}
+.feat-card h3 {
+  font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 1rem;
+  color: var(--fg); margin-bottom: 10px;
+}
+.feat-card p { font-size: 0.875rem; color: var(--fg-muted); line-height: 1.65; }
+
+/* HOW IT WORKS */
+.how { background: var(--bg-deep); }
+.how-inner { max-width: 1000px; margin: 0 auto; }
+.how-header { text-align: center; margin-bottom: 64px; }
+.how-header .section-title, .how-header .section-sub { max-width: 100%; text-align: center; margin-left: auto; margin-right: auto; }
+.how-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; position: relative; }
+.how-steps::before {
+  content: ''; position: absolute; top: 28px; left: calc(16.6% + 28px); right: calc(16.6% + 28px);
+  height: 1px; background: linear-gradient(90deg, var(--primary), oklch(0.5424 0.2454 293.0160 / 0.3));
+  pointer-events: none;
+}
+.how-step { text-align: center; padding: 0 24px; }
+.how-step-num {
+  width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 24px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 1.1rem;
+  background: var(--accent-soft); border: 2px solid var(--primary);
+  color: var(--primary); position: relative; z-index: 1;
+  box-shadow: 0 0 20px var(--primary-glow);
+}
+.how-step h3 {
+  font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700;
+  font-size: 1rem; color: var(--fg); margin-bottom: 10px;
+}
+.how-step p { font-size: 0.85rem; color: var(--fg-muted); line-height: 1.65; }
+
+/* ROLES SECTION */
+.roles { max-width: 1100px; margin: 0 auto; }
+.roles-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 56px; }
+.role-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 1.25rem; padding: 32px; overflow: hidden; position: relative;
+}
+.role-card.leader { border-color: oklch(0.5424 0.2454 293.0160 / 0.4); }
+.role-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px; border-radius: 100px; font-size: 0.7rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 20px;
+}
+.role-badge.leader-badge { background: oklch(0.5424 0.2454 293.0160 / 0.15); color: var(--primary); }
+.role-badge.worker-badge { background: oklch(0.6983 0.1337 165.4626 / 0.15); color: var(--success); }
+.role-card h3 { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 1.3rem; margin-bottom: 8px; }
+.role-card > p { font-size: 0.875rem; color: var(--fg-muted); margin-bottom: 24px; line-height: 1.65; }
+.role-features { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.role-features li {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 0.85rem; color: var(--fg-muted);
+}
+.role-features li::before {
+  content: ''; width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.leader .role-features li::before { background: oklch(0.5424 0.2454 293.0160 / 0.2); border: 1.5px solid var(--primary); }
+.worker-card .role-features li::before { background: oklch(0.6983 0.1337 165.4626 / 0.2); border: 1.5px solid var(--success); }
+
+/* CTA */
+.cta-section {
+  max-width: 800px; margin: 0 auto; text-align: center;
+}
+.cta-card {
+  background: var(--bg-card); border: 1px solid oklch(0.5424 0.2454 293.0160 / 0.35);
+  border-radius: 1.5rem; padding: 64px 48px;
+  position: relative; overflow: hidden;
+}
+.cta-card::before {
+  content: ''; position: absolute; top: -100px; left: 50%; transform: translateX(-50%);
+  width: 400px; height: 400px;
+  background: radial-gradient(ellipse, oklch(0.5424 0.2454 293.0160 / 0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+.cta-card h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: clamp(1.8rem, 3vw, 2.6rem); font-weight: 800; margin-bottom: 16px; }
+.cta-card p { font-size: 1rem; color: var(--fg-muted); margin-bottom: 40px; }
+.cta-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+/* FOOTER */
+footer {
+  padding: 48px 5vw; border-top: 1px solid var(--border-sub);
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+}
+footer p { font-size: 0.8rem; color: var(--fg-subtle); }
+.footer-links { display: flex; gap: 24px; }
+.footer-links a { font-size: 0.8rem; color: var(--fg-subtle); text-decoration: none; transition: color 0.2s; }
+.footer-links a:hover { color: var(--fg-muted); }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#">
+    <span class="nav-logo-dot"></span>
+    Schedule
+  </a>
+  <ul class="nav-links">
+    <li><a href="#features">Funciones</a></li>
+    <li><a href="#how">Cómo funciona</a></li>
+    <li><a href="#roles">Roles</a></li>
+  </ul>
+  <a href="Schedule - Worker Form.html" class="nav-cta">Empezar gratis</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-grid"></div>
+
+  <div class="hero-eyebrow">
+    <span class="hero-eyebrow-dot"></span>
+    Gestión de equipos de trabajo
+  </div>
+
+  <h1>Tu equipo,<br><em id="tw-word">organizado.</em><span id="tw-cursor" style="color:var(--primary)">|</span></h1>
+  <p>Schedule centraliza turnos, horas y asistencia para que lideres con claridad — sin hojas de cálculo, sin caos.</p>
+
+  <div class="hero-actions">
+    <a href="Schedule - Worker Form.html" class="btn-primary">Comenzar ahora</a>
+    <a href="Schedule - Admin Dashboard.html" class="btn-ghost">Ver demo &rarr;</a>
+  </div>
+
+  <!-- Mini mockup UI -->
+  <div class="hero-mockup">
+    <div class="mockup-topbar">
+      <div class="mockup-dot" style="background:#ff5f57"></div>
+      <div class="mockup-dot" style="background:#ffbd2e"></div>
+      <div class="mockup-dot" style="background:#28c840"></div>
+      <span style="font-size:0.7rem;color:var(--fg-subtle);margin-left:12px;font-family:'Inter',sans-serif;">schedule.app/dashboard</span>
+    </div>
+    <div class="mockup-inner">
+      <div class="mockup-sidebar">
+        <div class="m-nav-item active">
+          <div class="m-nav-icon" style="border-radius:50%"></div> Resumen
+        </div>
+        <div class="m-nav-item">
+          <div class="m-nav-icon"></div> Trabajadores
+        </div>
+        <div class="m-nav-item">
+          <div class="m-nav-icon" style="border-radius:2px"></div> Turnos
+        </div>
+        <div class="m-nav-item">
+          <div class="m-nav-icon" style="border-radius:50%"></div> Proyectos
+        </div>
+        <div class="m-nav-item">
+          <div class="m-nav-icon"></div> Solicitudes
+        </div>
+        <div class="m-nav-item" style="margin-top:auto">
+          <div class="m-nav-icon" style="border-radius:50%"></div> Perfil
+        </div>
+      </div>
+      <div class="mockup-content">
+        <div class="m-stats">
+          <div class="m-stat">
+            <span class="m-stat-label">Trabajadores</span>
+            <span class="m-stat-val purple">24</span>
+          </div>
+          <div class="m-stat">
+            <span class="m-stat-label">Proyectos</span>
+            <span class="m-stat-val green">7</span>
+          </div>
+          <div class="m-stat">
+            <span class="m-stat-label">Pendientes</span>
+            <span class="m-stat-val warn">3</span>
+          </div>
+        </div>
+        <div class="m-table">
+          <div class="m-table-head">
+            <span>Empleado</span>
+            <span>Turno</span>
+            <span>Horas</span>
+            <span>Estado</span>
+          </div>
+          <div class="m-table-row">
+            <span><div class="m-avatar" style="background:linear-gradient(135deg,oklch(0.5424 0.2454 293.0160),oklch(0.6983 0.1337 165.4626))"></div>Ana García</span>
+            <span>08:00–16:00</span>
+            <span>7.5h</span>
+            <span><span class="m-badge badge-green">Activo</span></span>
+          </div>
+          <div class="m-table-row">
+            <span><div class="m-avatar" style="background:linear-gradient(135deg,oklch(0.6192 0.2037 312.7283),oklch(0.5424 0.2454 293.0160))"></div>Luis Mora</span>
+            <span>14:00–22:00</span>
+            <span>6.0h</span>
+            <span><span class="m-badge badge-purple">Turno</span></span>
+          </div>
+          <div class="m-table-row">
+            <span><div class="m-avatar" style="background:linear-gradient(135deg,oklch(0.8336 0.1186 88.1463),oklch(0.7834 0.1261 58.7491))"></div>Sofía Reyes</span>
+            <span>00:00–08:00</span>
+            <span>8.0h</span>
+            <span><span class="m-badge badge-warn">Revisión</span></span>
+          </div>
+          <div class="m-table-row">
+            <span><div class="m-avatar" style="background:linear-gradient(135deg,oklch(0.6983 0.1337 165.4626),oklch(0.6309 0.1013 183.4907))"></div>Marco Silva</span>
+            <span>08:00–16:00</span>
+            <span>8.0h</span>
+            <span><span class="m-badge badge-green">Activo</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="features">
+    <div class="features-header">
+      <p class="section-eyebrow">Funcionalidades</p>
+      <h2 class="section-title">Todo lo que tu equipo necesita</h2>
+      <p class="section-sub">Desde el registro de entrada hasta los reportes mensuales, Schedule lo tiene cubierto.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+
+      <!-- LÍDER -->
+      <div style="background:var(--bg-card);border:1px solid oklch(0.5424 0.2454 293.0160 / 0.35);border-radius:1.25rem;padding:32px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--border);">
+          <div style="width:48px;height:48px;border-radius:12px;background:oklch(0.5424 0.2454 293.0160 / 0.15);display:flex;align-items:center;justify-content:center;font-size:1.4rem;">👔</div>
+          <div>
+            <h3 style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.1rem;margin-bottom:2px;">Panel del Líder</h3>
+            <p style="font-size:.78rem;color:var(--fg-muted);">Control total del equipo</p>
+          </div>
+          <span style="margin-left:auto;font-size:.68rem;font-weight:700;padding:4px 10px;border-radius:100px;background:oklch(0.5424 0.2454 293.0160 / 0.15);color:var(--primary);">Administrador</span>
+        </div>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:14px;">
+          <li style="display:flex;align-items:flex-start;gap:12px;"><div style="width:20px;height:20px;border-radius:6px;background:oklch(0.5424 0.2454 293.0160 / 0.15);border:1.5px solid var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;"><div style="width:7px;height:7px;border-radius:50%;background:var(--primary);"></div></div><div><p style="font-weight:600;font-size:.88rem;margin-bottom:2px;">Gestión de personal</p><p style="font-size:.78rem;color:var(--fg-muted);">CRUD completo de empleados, puestos y roles</p></div></li>
+          <li style="display:flex;align-items:flex-start;gap:12px;"><div style="width:20px;height:20px;border-radius:6px;background:oklch(0.5424 0.2454 293.0160 / 0.15);border:1.5px solid var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;"><div style="width:7px;height:7px;border-radius:50%;background:var(--primary);"></div></div><div><p style="font-weight:600;font-size:.88rem;margin-bottom:2px;">Planificación de turnos</p><p style="font-size:.78rem;color:var(--fg-muted);">Asigna y visualiza turnos con vista de calendario</p></div></li>
+          <li style="display:flex;align-items:flex-start;gap:12px;"><div style="width:20px;height:20px;border-radius:6px;background:oklch(0.5424 0.2454 293.0160 / 0.15);border:1.5px solid var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;"><div style="width:7px;height:7px;border-radius:50%;background:var(--primary);"></div></div><div><p style="font-weight:600;font-size:.88rem;margin-bottom:2px;">Aprobación de horas</p><p style="font-size:.78rem;color:var(--fg-muted);">Revisa y aprueba las horas que reportan tus trabajadores</p></div></li>
+          <li style="display:flex;align-items:flex-start;gap:12px;"><div style="width:20px;height:20px;border-radius:6px;background:oklch(0.5424 0.2454 293.0160 / 0.15);border:1.5px solid var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;"><div style="width:7px;height:7px;border-radius:50%;background:var(--primary);"></div></div><div><p style="font-weight:600;font-size:.88rem;margin-bottom:2px;">Gestión de coberturas</p><p style="font-size:.78rem;color:var(--fg-muted);">Crea y administra solicitudes de cobertura de turnos</p></div></li>
+          <li style="display:flex;align-items:flex-start;gap:12px;"><div style="width:20px;height:20px;border-radius:6px;background:oklch(0.5424 0.2454 293.0160 / 0.15);border:1.5px solid var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;"><div style="width:7px;height:7px;border-radius:50%;background:var(--primary);"></div></div><div><p style="font-weight:600;font-size:.88rem;margin-bottom:2px;">Reportes exportables</p><p style="font-size:.78rem;color:var(--fg-muted);">Informes de horas por empleado o equipo, exportables a PDF</p></div></li>
+          <li style="display:flex;align-items:flex-start;gap:12px;"><div style="width:20px;height:20px;border-radius:6px;background:oklch(0.5424 0.2454 293.0160 / 0.15);border:1.5px solid var(--primary);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;"><div style="width:7px;height:7px;border-radius:50%;background:var(--primary);"></div></div><div><p style="font-weight:600;font-size:.88rem;margin-bottom:2px;">Personalización de equipos</p><p style="font-size:.78rem;color:var(--fg-muted);">Colores, íconos y líderes configurables por equipo</p></div></li>
+        </ul>
+      </div>
+
+      <!-- TRABAJADOR -->
+      <div style="background:var(--bg-card);border:1px solid oklch(0.6983 0.1337 165.4626 / 0.3);border-radius:1.25rem;padding:32px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--border);">
+          <div style="width:48px;height:48px;border-radius:12px;background:oklch(0.6983 0.1337 165.4626 / 0.15);display:flex;align-items:center;justify-content:center;font-size:1.4rem;">👷</div>
+          <div>
+            <h3 style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.1rem;margin-bottom:2px;">Panel del Trabajador</h3>
+            <p style="font-size:.78rem;color:var(--fg-muted);">Gestión simple del día a día</p>
+          </div>
+          <span style="margin-left:auto;font-size:.68rem;font-weight:700;padding:4px 10px;border-radius:100px;background:oklch(0.6983 0.1337 165.4626 / 0.15);color:oklch(0.6983 0.1337 165.4626);">Colaborador</span>
+        </div>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:14px;">
+          <li style="display:flex;align-items:flex-start;gap:12px;"><div style="width:20px;height:20px;border-radius:6px;background:oklch(0.6983 0.1337 165.4626 / 0.15);border:1.5px solid oklch(0.6983 0.1337 165.4626);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;"><div style="width:7px;height:7px;border-radius:50%;background:oklch(0.6983 0.1337 165.4626);"></div></div><div><p style="font-weight:600;font-size:.88rem;margin-bottom:2px;">Registro de horas trabajadas</p><p style="font-size:.78rem;color:var(--fg-muted);">Reporta tus horas al líder para revisión y aprobación directa</p></div></li>
+          <li style="display:flex;align-items:flex-start;gap:12px;"><div style="width:20px;height:20px;border-radius:6px;background:oklch(0.6983 0.1337 165.4626 / 0.15);border:1.5px solid oklch(0.6983 0.1337 165.4626);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;"><div style="width:7px;height:7px;border-radius:50%;background:oklch(0.6983 0.1337 165.4626);"></div></div><div><p style="font-weight:600;font-size:.88rem;margin-bottom:2px;">Visualización de turnos</p><p style="font-size:.78rem;color:var(--fg-muted);">Consulta tus turnos asignados en el calendario mensual</p></div></li>
+          <li style="display:flex;align-items:flex-start;gap:12px;"><div style="width:20px;height:20px;border-radius:6px;background:oklch(0.6983 0.1337 165.4626 / 0.15);border:1.5px solid oklch(0.6983 0.1337 165.4626);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;"><div style="width:7px;height:7px;border-radius:50%;background:oklch(0.6983 0.1337 165.4626);"></div></div><div><p style="font-weight:600;font-size:.88rem;margin-bottom:2px;">Solicitudes de ausencia y cobertura</p><p style="font-size:.78rem;color:var(--fg-muted);">Envía solicitudes a tu líder con motivo y rango de fechas</p></div></li>
+          <li style="display:flex;align-items:flex-start;gap:12px;"><div style="width:20px;height:20px;border-radius:6px;background:oklch(0.6983 0.1337 165.4626 / 0.15);border:1.5px solid oklch(0.6983 0.1337 165.4626);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;"><div style="width:7px;height:7px;border-radius:50%;background:oklch(0.6983 0.1337 165.4626);"></div></div><div><p style="font-weight:600;font-size:.88rem;margin-bottom:2px;">Etiquetas personalizadas</p><p style="font-size:.78rem;color:var(--fg-muted);">Crea etiquetas propias para organizar tu calendario</p></div></li>
+          <li style="display:flex;align-items:flex-start;gap:12px;"><div style="width:20px;height:20px;border-radius:6px;background:oklch(0.6983 0.1337 165.4626 / 0.15);border:1.5px solid oklch(0.6983 0.1337 165.4626);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;"><div style="width:7px;height:7px;border-radius:50%;background:oklch(0.6983 0.1337 165.4626);"></div></div><div><p style="font-weight:600;font-size:.88rem;margin-bottom:2px;">Perfil y equipo</p><p style="font-size:.78rem;color:var(--fg-muted);">Consulta tus datos, proyecto asignado y compañeros</p></div></li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how" class="how">
+  <div class="how-inner">
+    <div class="how-header">
+      <p class="section-eyebrow">Proceso</p>
+      <h2 class="section-title">En marcha en minutos</h2>
+      <p class="section-sub">Sin configuraciones complejas. Sin manuales. Tres pasos y tu equipo está listo.</p>
+    </div>
+    <div class="how-steps">
+      <div class="how-step">
+        <div class="how-step-num">01</div>
+        <h3>Crea tu organización</h3>
+        <p>Registra tu empresa y configura los puestos y roles que necesitas. Listo en menos de 3 minutos.</p>
+      </div>
+      <div class="how-step">
+        <div class="how-step-num">02</div>
+        <h3>Invita a tu equipo</h3>
+        <p>Comparte un enlace o llena el formulario por cada trabajador. Ellos reciben acceso instantáneo.</p>
+      </div>
+      <div class="how-step">
+        <div class="how-step-num">03</div>
+        <h3>Lidera con claridad</h3>
+        <p>Asigna turnos, revisa horas y aprueba solicitudes desde un dashboard centralizado.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ROLES -->
+<section id="roles" style="padding:100px 5vw;">
+  <div style="max-width:1100px;margin:0 auto;">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:52px;flex-wrap:wrap;gap:16px;">
+      <div>
+        <p class="section-eyebrow">Roles</p>
+        <h2 class="section-title" style="margin-bottom:8px;">Hecho para cada<br>persona del equipo</h2>
+        <p class="section-sub">Cada rol tiene su propia experiencia dentro de la plataforma.</p>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button id="cr-prev" style="width:38px;height:38px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--fg-muted);cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:border-color .2s;">←</button>
+        <button id="cr-next" style="width:38px;height:38px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--fg-muted);cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:border-color .2s;">→</button>
+      </div>
+    </div>
+
+    <div id="cr-viewport" style="overflow:hidden;position:relative;">
+      <div id="cr-track" style="display:flex;gap:20px;transition:transform .45s cubic-bezier(.4,0,.2,1);">
+
+        <!-- Card 1: Líder -->
+        <div class="role-carousel-card" style="min-width:340px;max-width:340px;background:var(--bg-card);border:1px solid oklch(0.5424 0.2454 293.0160 / 0.4);border-radius:1.25rem;padding:32px;flex-shrink:0;">
+          <div style="width:52px;height:52px;border-radius:14px;background:oklch(0.5424 0.2454 293.0160 / 0.15);display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin-bottom:20px;">👔</div>
+          <div style="display:inline-flex;align-items:center;gap:6px;background:oklch(0.5424 0.2454 293.0160 / 0.15);border-radius:100px;padding:4px 12px;margin-bottom:16px;">
+            <div style="width:6px;height:6px;border-radius:50%;background:var(--primary);"></div>
+            <span style="font-size:.68rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.08em;">Líder de Equipo</span>
+          </div>
+          <h3 style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.15rem;margin-bottom:10px;">El que planifica y aprueba</h3>
+          <p style="font-size:.82rem;color:var(--fg-muted);line-height:1.65;margin-bottom:24px;">Eres responsable de que el equipo funcione. Schedule te da visibilidad total: quién trabaja, cuándo, y si las horas cuadran.</p>
+          <div style="display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--border);padding-top:20px;">
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:.82rem;color:var(--fg-muted);">
+              <span style="color:var(--primary);font-size:.9rem;flex-shrink:0;margin-top:1px;">◈</span>Asigna turnos y proyectos a tu equipo
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:.82rem;color:var(--fg-muted);">
+              <span style="color:var(--primary);font-size:.9rem;flex-shrink:0;margin-top:1px;">◈</span>Revisa y aprueba las horas que reportan tus trabajadores
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:.82rem;color:var(--fg-muted);">
+              <span style="color:var(--primary);font-size:.9rem;flex-shrink:0;margin-top:1px;">◈</span>Gestiona coberturas y ausencias desde un solo panel
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:.82rem;color:var(--fg-muted);">
+              <span style="color:var(--primary);font-size:.9rem;flex-shrink:0;margin-top:1px;">◈</span>Genera informes de horas exportables a PDF
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Trabajador -->
+        <div class="role-carousel-card" style="min-width:340px;max-width:340px;background:var(--bg-card);border:1px solid oklch(0.6983 0.1337 165.4626 / 0.35);border-radius:1.25rem;padding:32px;flex-shrink:0;">
+          <div style="width:52px;height:52px;border-radius:14px;background:oklch(0.6983 0.1337 165.4626 / 0.15);display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin-bottom:20px;">👷</div>
+          <div style="display:inline-flex;align-items:center;gap:6px;background:oklch(0.6983 0.1337 165.4626 / 0.15);border-radius:100px;padding:4px 12px;margin-bottom:16px;">
+            <div style="width:6px;height:6px;border-radius:50%;background:oklch(0.6983 0.1337 165.4626);"></div>
+            <span style="font-size:.68rem;font-weight:700;color:oklch(0.6983 0.1337 165.4626);text-transform:uppercase;letter-spacing:.08em;">Trabajador</span>
+          </div>
+          <h3 style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.15rem;margin-bottom:10px;">El que registra y consulta</h3>
+          <p style="font-size:.82rem;color:var(--fg-muted);line-height:1.65;margin-bottom:24px;">Tu herramienta para el día a día: ver tus turnos, registrar tus horas y coordinar con tu líder sin llamadas ni mensajes perdidos.</p>
+          <div style="display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--border);padding-top:20px;">
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:.82rem;color:var(--fg-muted);">
+              <span style="color:oklch(0.6983 0.1337 165.4626);font-size:.9rem;flex-shrink:0;margin-top:1px;">◈</span>Consulta tu calendario de turnos del mes
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:.82rem;color:var(--fg-muted);">
+              <span style="color:oklch(0.6983 0.1337 165.4626);font-size:.9rem;flex-shrink:0;margin-top:1px;">◈</span>Reporta tus horas trabajadas para revisión del líder
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:.82rem;color:var(--fg-muted);">
+              <span style="color:oklch(0.6983 0.1337 165.4626);font-size:.9rem;flex-shrink:0;margin-top:1px;">◈</span>Envía solicitudes de ausencia o cobertura
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:.82rem;color:var(--fg-muted);">
+              <span style="color:oklch(0.6983 0.1337 165.4626);font-size:.9rem;flex-shrink:0;margin-top:1px;">◈</span>Crea etiquetas propias para organizar tu semana
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 3: Administrador -->
+        <div class="role-carousel-card" style="min-width:340px;max-width:340px;background:var(--bg-card);border:1px solid oklch(0.8336 0.1186 88.1463 / 0.35);border-radius:1.25rem;padding:32px;flex-shrink:0;">
+          <div style="width:52px;height:52px;border-radius:14px;background:oklch(0.8336 0.1186 88.1463 / 0.15);display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin-bottom:20px;">🏢</div>
+          <div style="display:inline-flex;align-items:center;gap:6px;background:oklch(0.8336 0.1186 88.1463 / 0.15);border-radius:100px;padding:4px 12px;margin-bottom:16px;">
+            <div style="width:6px;height:6px;border-radius:50%;background:oklch(0.8336 0.1186 88.1463);"></div>
+            <span style="font-size:.68rem;font-weight:700;color:oklch(0.8336 0.1186 88.1463);text-transform:uppercase;letter-spacing:.08em;">Administrador</span>
+          </div>
+          <h3 style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.15rem;margin-bottom:10px;">El que configura y organiza</h3>
+          <p style="font-size:.82rem;color:var(--fg-muted);line-height:1.65;margin-bottom:24px;">Tienes la vista completa de la organización. Creas equipos, asignas líderes y personalizas cómo se ve cada grupo dentro de la plataforma.</p>
+          <div style="display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--border);padding-top:20px;">
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:.82rem;color:var(--fg-muted);">
+              <span style="color:oklch(0.8336 0.1186 88.1463);font-size:.9rem;flex-shrink:0;margin-top:1px;">◈</span>Crea y personaliza equipos con colores e íconos
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:.82rem;color:var(--fg-muted);">
+              <span style="color:oklch(0.8336 0.1186 88.1463);font-size:.9rem;flex-shrink:0;margin-top:1px;">◈</span>Asigna líderes y controla accesos por rol
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:.82rem;color:var(--fg-muted);">
+              <span style="color:oklch(0.8336 0.1186 88.1463);font-size:.9rem;flex-shrink:0;margin-top:1px;">◈</span>Gestiona catálogos de puestos y tipos de ausencia
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:.82rem;color:var(--fg-muted);">
+              <span style="color:oklch(0.8336 0.1186 88.1463);font-size:.9rem;flex-shrink:0;margin-top:1px;">◈</span>Vista unificada de todos los equipos y proyectos
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 4: Coordinador -->
+        <div class="role-carousel-card" style="min-width:340px;max-width:340px;background:var(--bg-card);border:1px solid oklch(0.6192 0.2037 312.7283 / 0.35);border-radius:1.25rem;padding:32px;flex-shrink:0;">
+          <div style="width:52px;height:52px;border-radius:14px;background:oklch(0.6192 0.2037 312.7283 / 0.15);display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin-bottom:20px;">📋</div>
+          <div style="display:inline-flex;align-items:center;gap:6px;background:oklch(0.6192 0.2037 312.7283 / 0.15);border-radius:100px;padding:4px 12px;margin-bottom:16px;">
+            <div style="width:6px;height:6px;border-radius:50%;background:oklch(0.6192 0.2037 312.7283);"></div>
+            <span style="font-size:.68rem;font-weight:700;color:oklch(0.6192 0.2037 312.7283);text-transform:uppercase;letter-spacing:.08em;">Coordinador</span>
+          </div>
+          <h3 style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.15rem;margin-bottom:10px;">El que revisa y valida</h3>
+          <p style="font-size:.82rem;color:var(--fg-muted);line-height:1.65;margin-bottom:24px;">Supervisas varios equipos a la vez. Tu foco está en la aprobación de horas, coberturas y asegurarte de que los horarios se cumplan.</p>
+          <div style="display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--border);padding-top:20px;">
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:.82rem;color:var(--fg-muted);">
+              <span style="color:oklch(0.6192 0.2037 312.7283);font-size:.9rem;flex-shrink:0;margin-top:1px;">◈</span>Aprueba o rechaza horas reportadas por múltiples equipos
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:.82rem;color:var(--fg-muted);">
+              <span style="color:oklch(0.6192 0.2037 312.7283);font-size:.9rem;flex-shrink:0;margin-top:1px;">◈</span>Gestiona solicitudes de cobertura entre equipos
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:.82rem;color:var(--fg-muted);">
+              <span style="color:oklch(0.6192 0.2037 312.7283);font-size:.9rem;flex-shrink:0;margin-top:1px;">◈</span>Genera reportes comparativos por equipo
+            </div>
+            <div style="display:flex;gap:10px;align-items:flex-start;font-size:.82rem;color:var(--fg-muted);">
+              <span style="color:oklch(0.6192 0.2037 312.7283);font-size:.9rem;flex-shrink:0;margin-top:1px;">◈</span>Visualiza ausencias y alertas en tiempo real
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Dots -->
+    <div id="cr-dots" style="display:flex;justify-content:center;gap:8px;margin-top:28px;">
+      <div class="cr-dot active" style="width:20px;height:4px;border-radius:100px;background:var(--primary);transition:all .3s;"></div>
+      <div class="cr-dot" style="width:8px;height:4px;border-radius:100px;background:var(--border);transition:all .3s;"></div>
+      <div class="cr-dot" style="width:8px;height:4px;border-radius:100px;background:var(--border);transition:all .3s;"></div>
+      <div class="cr-dot" style="width:8px;height:4px;border-radius:100px;background:var(--border);transition:all .3s;"></div>
+    </div>
+  </div>
+</section>
+<!-- CTA -->
+<section>
+  <div class="cta-section">
+    <div class="cta-card">
+      <h2>¿Listo para ordenar<br>tu equipo?</h2>
+      <p>Empieza hoy. Sin tarjeta de crédito, sin contratos. Solo resultados.</p>
+      <div class="cta-actions">
+        <a href="Schedule - Worker Form.html" class="btn-primary">Registrar mi equipo</a>
+        <a href="Schedule - Admin Dashboard.html" class="btn-ghost">Ver el dashboard</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <a class="nav-logo" href="#" style="text-decoration:none">
+    <span class="nav-logo-dot"></span>
+    Schedule
+  </a>
+  <p style="font-size:0.8rem;color:var(--fg-subtle)">© 2026 Schedule. Sistema de gestión de equipos.</p>
+  <div class="footer-links">
+    <a href="#">Privacidad</a>
+    <a href="#">Términos</a>
+    <a href="Schedule - Admin Dashboard.html">Dashboard</a>
+  </div>
+</footer>
+
+<script>
+(function(){
+  const words=['organizado.','eficiente.','claro.','simplificado.','sin caos.'];
+  let wi=0,ci=0,del=false;
+  const el=document.getElementById('tw-word');
+  if(!el)return;
+  function tick(){
+    const w=words[wi];
+    if(del){el.textContent=w.slice(0,--ci);}else{el.textContent=w.slice(0,++ci);}
+    if(!del&&ci===w.length){setTimeout(()=>{del=true;tick();},2200);return;}
+    if(del&&ci===0){del=false;wi=(wi+1)%words.length;}
+    setTimeout(tick,del?55:90);
+  }
+  setTimeout(tick,1400);
+})();
+</script>
+
+<script>
+(function(){
+  const track    = document.getElementById('cr-track');
+  const viewport = document.getElementById('cr-viewport');
+  const dots     = document.querySelectorAll('.cr-dot');
+  const cards    = document.querySelectorAll('.role-carousel-card');
+  let cur = 0;
+  const cardW = 340 + 20;
+  let timer = null;
+
+  function goTo(n) {
+    cur = ((n % cards.length) + cards.length) % cards.length;
+    track.style.transform = 'translateX(-' + (cur * cardW) + 'px)';
+    dots.forEach((d,i) => {
+      d.style.width      = i===cur ? '20px' : '8px';
+      d.style.background = i===cur ? 'var(--primary)' : 'var(--border)';
+    });
+  }
+
+  function startAuto() {
+    timer = setInterval(() => goTo(cur + 1), 3600);
+  }
+  function stopAuto() {
+    clearInterval(timer);
+    timer = null;
+  }
+
+  document.getElementById('cr-prev').addEventListener('click', () => { stopAuto(); goTo(cur - 1); startAuto(); });
+  document.getElementById('cr-next').addEventListener('click', () => { stopAuto(); goTo(cur + 1); startAuto(); });
+  dots.forEach((d,i) => d.addEventListener('click', () => { stopAuto(); goTo(i); startAuto(); }));
+
+  viewport.addEventListener('mouseenter', stopAuto);
+  viewport.addEventListener('mouseleave', startAuto);
+
+  startAuto();
+})();
+</script>
+</body>
+</html>

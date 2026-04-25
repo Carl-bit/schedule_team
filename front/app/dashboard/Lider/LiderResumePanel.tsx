@@ -28,19 +28,17 @@ export default function LiderResumePanel() {
                     fetch(`${API_BASE}/empleados`),
                     fetch(`${API_BASE}/proyectos`),
                     fetch(`${API_BASE}/ausencias?t=${timestamp}`),
-                    fetch(`${API_BASE}/hora?t=${timestamp}`)
+                    fetch(`${API_BASE}/hora?t=${timestamp}`),
                 ]);
 
                 if (empleadosRes.ok) {
                     const data = await empleadosRes.json();
                     setTotalTrabajadores(data.length);
                 }
-
                 if (proyectosRes.ok) {
                     const data = await proyectosRes.json();
                     setTotalProyectos(data.length);
                 }
-
                 if (ausenciasRes.ok) {
                     const data = await ausenciasRes.json();
                     if (Array.isArray(data)) {
@@ -48,14 +46,12 @@ export default function LiderResumePanel() {
                         setSolicitudesAprobadas(data.filter((a: any) => a.estado_id === 2).length);
                     }
                 }
-
                 if (horasRes.ok) {
                     const data = await horasRes.json();
                     if (Array.isArray(data)) {
                         setTotalHorasPendientes(data.filter((h: any) => h.estado_id === 1).length);
                     }
                 }
-
             } catch (err) {
                 console.error('Error cargando resumen:', err);
             } finally {
@@ -69,113 +65,81 @@ export default function LiderResumePanel() {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-full">
-                <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
+                <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--pr-primary)' }} />
             </div>
         );
     }
 
+    const STATS = [
+        { label: 'Trabajadores', val: totalTrabajadores, sub: 'registrados', color: 'var(--pr-primary)', bg: 'rgba(124,58,237,.06)', border: 'rgba(124,58,237,.3)', icon: <Users className="w-4 h-4" /> },
+        { label: 'Proyectos', val: totalProyectos, sub: 'activos', color: 'var(--pr-cyan)', bg: 'rgba(6,182,212,.06)', border: 'rgba(6,182,212,.3)', icon: <Briefcase className="w-4 h-4" /> },
+        { label: 'Pendientes', val: solicitudesPendientes, sub: totalHorasPendientes > 0 ? `+ ${totalHorasPendientes} horas` : 'solicitudes', color: 'var(--pr-warn)', bg: 'rgba(245,158,11,.06)', border: 'rgba(245,158,11,.3)', icon: <AlertCircle className="w-4 h-4" /> },
+        { label: 'Aprobadas', val: solicitudesAprobadas, sub: 'confirmadas', color: 'var(--pr-success)', bg: 'rgba(16,185,129,.06)', border: 'rgba(16,185,129,.3)', icon: <CheckCircle2 className="w-4 h-4" /> },
+    ];
+
     return (
-        <div className="p-6 flex flex-col gap-6 h-full overflow-y-auto custom-scrollbar">
-            {/* Bienvenida */}
-            <div className="bg-gradient-to-r from-indigo-900/40 to-violet-900/40 p-6 rounded-2xl border border-white/10 backdrop-blur-md">
-                <h1 className="text-2xl font-bold text-white mb-1">¡Hola, {nombreUsuario}! 👋</h1>
-                <p className="text-gray-300 text-sm">Aquí tienes el resumen general de tu equipo.</p>
-            </div>
-
-            {/* Widgets principales */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {/* Trabajadores */}
-                <div className="bg-[#1e2336]/80 backdrop-blur-md p-5 rounded-2xl border border-[#3b4256]/50 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none"></div>
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="bg-indigo-500/10 p-2 rounded-lg">
-                            <Users className="w-4 h-4 text-indigo-400" />
-                        </div>
-                        <h3 className="text-gray-400 text-xs uppercase tracking-wider font-bold">Trabajadores</h3>
-                    </div>
-                    <div className="flex items-end gap-2">
-                        <span className="text-3xl font-black text-indigo-300">{totalTrabajadores}</span>
-                        <span className="text-xs text-gray-500 mb-1">registrados</span>
-                    </div>
-                </div>
-
-                {/* Proyectos */}
-                <div className="bg-[#1e2336]/80 backdrop-blur-md p-5 rounded-2xl border border-[#3b4256]/50 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-cyan-500/5 rounded-full blur-2xl pointer-events-none"></div>
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="bg-cyan-500/10 p-2 rounded-lg">
-                            <Briefcase className="w-4 h-4 text-cyan-400" />
-                        </div>
-                        <h3 className="text-gray-400 text-xs uppercase tracking-wider font-bold">Proyectos</h3>
-                    </div>
-                    <div className="flex items-end gap-2">
-                        <span className="text-3xl font-black text-cyan-300">{totalProyectos}</span>
-                        <span className="text-xs text-gray-500 mb-1">activos</span>
-                    </div>
-                </div>
-
-                {/* Solicitudes Pendientes */}
-                <div className="bg-[#1e2336]/80 backdrop-blur-md p-5 rounded-2xl border border-[#3b4256]/50 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-amber-500/5 rounded-full blur-2xl pointer-events-none"></div>
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="bg-amber-500/10 p-2 rounded-lg">
-                            <AlertCircle className="w-4 h-4 text-amber-400" />
-                        </div>
-                        <h3 className="text-gray-400 text-xs uppercase tracking-wider font-bold">Pendientes</h3>
-                    </div>
-                    <div className="flex items-end gap-2">
-                        <span className="text-3xl font-black text-amber-400">{solicitudesPendientes}</span>
-                        <span className="text-xs text-gray-500 mb-1">solicitudes</span>
-                    </div>
-                    {totalHorasPendientes > 0 && (
-                        <p className="text-[10px] text-amber-500/60 mt-2">+ {totalHorasPendientes} horas por revisar</p>
-                    )}
-                </div>
-
-                {/* Aprobadas */}
-                <div className="bg-[#1e2336]/80 backdrop-blur-md p-5 rounded-2xl border border-[#3b4256]/50 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none"></div>
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="bg-emerald-500/10 p-2 rounded-lg">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                        </div>
-                        <h3 className="text-gray-400 text-xs uppercase tracking-wider font-bold">Aprobadas</h3>
-                    </div>
-                    <div className="flex items-end gap-2">
-                        <span className="text-3xl font-black text-emerald-400">{solicitudesAprobadas}</span>
-                        <span className="text-xs text-gray-500 mb-1">confirmadas</span>
-                    </div>
+        <div className="h-full overflow-y-auto custom-scrollbar p-7" style={{ background: 'var(--pr-bg)' }}>
+            {/* Welcome banner */}
+            <div className="rounded-2xl p-6 mb-6 flex items-center gap-4"
+                style={{
+                    background: 'linear-gradient(135deg, rgba(124,58,237,.18) 0%, rgba(109,40,217,.08) 100%)',
+                    border: '1px solid rgba(124,58,237,.3)',
+                }}>
+                <div className="text-3xl">👋</div>
+                <div>
+                    <h1 className="text-2xl font-extrabold mb-1" style={{ color: 'var(--pr-fg)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+                        ¡Hola, {nombreUsuario}!
+                    </h1>
+                    <p className="text-sm" style={{ color: 'var(--pr-fgm)' }}>Aquí tienes el resumen general de tu equipo.</p>
                 </div>
             </div>
 
-            {/* Actividad reciente */}
-            <div className="bg-[#1e2336]/80 backdrop-blur-md rounded-2xl border border-[#3b4256]/50 overflow-hidden">
-                <div className="flex items-center gap-2 px-5 py-4 border-b border-white/5">
-                    <Clock className="w-4 h-4 text-indigo-400" />
-                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">Resumen Rápido</h3>
+            {/* Widgets */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                {STATS.map((s) => (
+                    <div key={s.label} className="rounded-2xl p-5 relative overflow-hidden"
+                        style={{ background: s.bg, border: `1px solid ${s.border}` }}>
+                        <div className="absolute top-0 right-0 w-16 h-16 rounded-full pointer-events-none"
+                            style={{ background: `${s.color}20`, filter: 'blur(30px)' }}></div>
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3"
+                            style={{ background: `${s.color}20`, color: s.color }}>
+                            {s.icon}
+                        </div>
+                        <div className="text-3xl font-extrabold mb-1"
+                            style={{ color: s.color, fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+                            {s.val}
+                        </div>
+                        <p className="text-[11px] font-bold uppercase tracking-wider mb-1" style={{ color: 'var(--pr-fgs)' }}>{s.label}</p>
+                        <p className="text-[11px]" style={{ color: 'var(--pr-fgm)' }}>{s.sub}</p>
+                    </div>
+                ))}
+            </div>
+
+            {/* Quick summary */}
+            <div className="rounded-2xl overflow-hidden"
+                style={{ background: 'var(--pr-bg-card)', border: '1px solid var(--pr-bsub)' }}>
+                <div className="flex items-center gap-2 px-5 py-4" style={{ borderBottom: '1px solid var(--pr-bsub)' }}>
+                    <Clock className="w-4 h-4" style={{ color: 'var(--pr-primary)' }} />
+                    <h3 className="text-sm font-bold uppercase tracking-wider"
+                        style={{ color: 'var(--pr-fg)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+                        Resumen Rápido
+                    </h3>
                 </div>
-                <div className="p-5 flex flex-col gap-3">
-                    <div className="flex items-center justify-between p-3 bg-black/20 rounded-xl border border-white/5">
-                        <div className="flex items-center gap-3">
-                            <Users className="w-4 h-4 text-indigo-400" />
-                            <span className="text-sm text-gray-300">Equipo total</span>
+                <div className="p-5 flex flex-col gap-2">
+                    {[
+                        { icon: <Users className="w-4 h-4" style={{ color: 'var(--pr-primary)' }} />, label: 'Equipo total', val: `${totalTrabajadores} personas`, color: 'var(--pr-fg)' },
+                        { icon: <Briefcase className="w-4 h-4" style={{ color: 'var(--pr-cyan)' }} />, label: 'Proyectos activos', val: `${totalProyectos} proyectos`, color: 'var(--pr-fg)' },
+                        { icon: <AlertCircle className="w-4 h-4" style={{ color: 'var(--pr-warn)' }} />, label: 'Solicitudes por aprobar', val: `${solicitudesPendientes + totalHorasPendientes} pendientes`, color: 'var(--pr-warn)' },
+                    ].map((row) => (
+                        <div key={row.label} className="flex items-center justify-between p-3 rounded-xl"
+                            style={{ background: 'var(--pr-bg-deep)', border: '1px solid var(--pr-bsub)' }}>
+                            <div className="flex items-center gap-3">
+                                {row.icon}
+                                <span className="text-sm" style={{ color: 'var(--pr-fgm)' }}>{row.label}</span>
+                            </div>
+                            <span className="text-sm font-bold" style={{ color: row.color, fontFamily: "'Plus Jakarta Sans',sans-serif" }}>{row.val}</span>
                         </div>
-                        <span className="text-sm font-bold text-white">{totalTrabajadores} personas</span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-black/20 rounded-xl border border-white/5">
-                        <div className="flex items-center gap-3">
-                            <Briefcase className="w-4 h-4 text-cyan-400" />
-                            <span className="text-sm text-gray-300">Proyectos activos</span>
-                        </div>
-                        <span className="text-sm font-bold text-white">{totalProyectos} proyectos</span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-black/20 rounded-xl border border-white/5">
-                        <div className="flex items-center gap-3">
-                            <AlertCircle className="w-4 h-4 text-amber-400" />
-                            <span className="text-sm text-gray-300">Solicitudes por aprobar</span>
-                        </div>
-                        <span className="text-sm font-bold text-amber-400">{solicitudesPendientes + totalHorasPendientes} pendientes</span>
-                    </div>
+                    ))}
                 </div>
             </div>
         </div>

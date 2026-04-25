@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schedule — Registro de Empleado</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+:root {
+  --bg:        oklch(0.1358 0.0163 262.7113);
+  --bg-deep:   oklch(0.1074 0.0120 261.1111);
+  --bg-card:   oklch(0.1573 0.0228 265.6559);
+  --border:    oklch(0.2800 0.0369 259.9740);
+  --border-sub:oklch(0.2200 0.0280 260.0000);
+  --primary:   oklch(0.5424 0.2454 293.0160);
+  --primary-fg:oklch(0.9838 0.0035 247.8583);
+  --primary-glow:oklch(0.5424 0.2454 293.0160 / 0.25);
+  --accent-soft:oklch(0.2302 0.0714 298.2794);
+  --fg:        oklch(0.9838 0.0035 247.8583);
+  --fg-muted:  oklch(0.7107 0.0351 256.7877);
+  --fg-subtle: oklch(0.4800 0.0300 257.0000);
+  --success:   oklch(0.6983 0.1337 165.4626);
+  --destructive:oklch(0.3959 0.1331 25.7205);
+  --r: 0.75rem;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg); color:var(--fg);
+  font-family:'Inter',sans-serif; min-height:100vh;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  position:relative; overflow-x:hidden;
+}
+.bg-glow{
+  position:fixed; top:-200px; left:50%; transform:translateX(-50%);
+  width:800px; height:600px;
+  background:radial-gradient(ellipse,oklch(0.5424 0.2454 293.0160 / 0.10) 0%,transparent 70%);
+  pointer-events:none;
+}
+.bg-grid{
+  position:fixed;inset:0;
+  background-image:
+    linear-gradient(oklch(0.2800 0.0369 259.9740 / 0.25) 1px,transparent 1px),
+    linear-gradient(90deg,oklch(0.2800 0.0369 259.9740 / 0.25) 1px,transparent 1px);
+  background-size:50px 50px;
+  mask-image:radial-gradient(ellipse 70% 60% at 50% 30%,black 20%,transparent 100%);
+  pointer-events:none;
+}
+#root{width:100%;max-width:560px;padding:24px 16px;position:relative;z-index:1;}
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+<div class="bg-grid"></div>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const PUESTOS = [
+  { id: 'operario', label: 'Operario' },
+  { id: 'tecnico', label: 'Técnico' },
+  { id: 'supervisor', label: 'Supervisor' },
+  { id: 'coordinador', label: 'Coordinador' },
+  { id: 'analista', label: 'Analista' },
+  { id: 'administrativo', label: 'Administrativo' },
+];
+
+const TURNOS = [
+  { id: 'manana', label: 'Mañana', desc: '06:00 – 14:00' },
+  { id: 'tarde', label: 'Tarde', desc: '14:00 – 22:00' },
+  { id: 'noche', label: 'Noche', desc: '22:00 – 06:00' },
+  { id: 'flexible', label: 'Flexible', desc: 'Por asignar' },
+];
+
+const formStyles = {
+  card: {
+    background: 'var(--bg-card)',
+    border: '1px solid var(--border)',
+    borderRadius: '1.25rem',
+    padding: '36px',
+    boxShadow: '0 40px 100px oklch(0 0 0 / 0.5)',
+  },
+  logo: {
+    display: 'flex', alignItems: 'center', gap: 8,
+    fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: '1.1rem',
+    color: 'var(--fg)', textDecoration: 'none', marginBottom: 32,
+  },
+  dot: {
+    width: 8, height: 8, borderRadius: '50%',
+    background: 'var(--primary)', boxShadow: '0 0 10px var(--primary)',
+  },
+  stepBar: { display: 'flex', gap: 8, marginBottom: 32 },
+  stepDot: (active, done) => ({
+    flex: 1, height: 4, borderRadius: 100,
+    background: done ? 'var(--primary)' : active ? 'var(--primary)' : 'var(--border)',
+    opacity: done ? 1 : active ? 1 : 0.4,
+    transition: 'background 0.4s, opacity 0.4s',
+  }),
+  stepLabel: {
+    fontFamily: "'Plus Jakarta Sans',sans-serif",
+    fontSize: '0.7rem', fontWeight: 700, color: 'var(--fg-subtle)',
+    textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6,
+  },
+  title: {
+    fontFamily: "'Plus Jakarta Sans',sans-serif",
+    fontSize: '1.5rem', fontWeight: 800, color: 'var(--fg)', marginBottom: 6,
+  },
+  subtitle: { fontSize: '0.875rem', color: 'var(--fg-muted)', marginBottom: 28, lineHeight: 1.6 },
+  fieldGroup: { display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 28 },
+  fieldRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
+  label: { fontSize: '0.8rem', fontWeight: 600, color: 'var(--fg-muted)', marginBottom: 6, display: 'block' },
+  input: {
+    width: '100%', background: 'var(--bg-deep)',
+    border: '1px solid var(--border)', borderRadius: 'var(--r)',
+    padding: '11px 14px', fontSize: '0.875rem', color: 'var(--fg)',
+    outline: 'none', fontFamily: "'Inter',sans-serif",
+    transition: 'border-color 0.2s',
+  },
+  select: {
+    width: '100%', background: 'var(--bg-deep)',
+    border: '1px solid var(--border)', borderRadius: 'var(--r)',
+    padding: '11px 14px', fontSize: '0.875rem', color: 'var(--fg)',
+    outline: 'none', fontFamily: "'Inter',sans-serif", cursor: 'pointer',
+    appearance: 'none',
+  },
+  btnPrimary: {
+    width: '100%', background: 'var(--primary)', color: 'var(--primary-fg)',
+    border: 'none', borderRadius: 'var(--r)', padding: '13px',
+    fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 700, fontSize: '0.95rem',
+    cursor: 'pointer', transition: 'opacity 0.2s, transform 0.15s',
+    boxShadow: '0 0 30px var(--primary-glow)',
+  },
+  btnGhost: {
+    flex: 1, background: 'transparent', color: 'var(--fg-muted)',
+    border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '13px',
+    fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 600, fontSize: '0.875rem',
+    cursor: 'pointer', transition: 'border-color 0.2s',
+  },
+  row: { display: 'flex', gap: 10, marginTop: 0 },
+  errorBox: {
+    background: 'oklch(0.3959 0.1331 25.7205 / 0.12)',
+    border: '1px solid oklch(0.3959 0.1331 25.7205 / 0.4)',
+    borderRadius: 'var(--r)', padding: '10px 14px',
+    fontSize: '0.8rem', color: 'oklch(0.7 0.12 25)',
+    marginBottom: 16,
+  },
+};
+
+function InputField({ label, type = 'text', placeholder, value, onChange, error }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <div>
+      <label style={formStyles.label}>{label}</label>
+      <input
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={{
+          ...formStyles.input,
+          borderColor: error ? 'oklch(0.6 0.13 25)' : focused ? 'var(--primary)' : 'var(--border)',
+        }}
+      />
+      {error && <p style={{ fontSize: '0.72rem', color: 'oklch(0.65 0.13 25)', marginTop: 4 }}>{error}</p>}
+    </div>
+  );
+}
+
+function SelectField({ label, options, value, onChange }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <div>
+      <label style={formStyles.label}>{label}</label>
+      <div style={{ position: 'relative' }}>
+        <select
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={{ ...formStyles.select, borderColor: focused ? 'var(--primary)' : 'var(--border)' }}
+        >
+          <option value="">Seleccionar...</option>
+          {options.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+        </select>
+        <span style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', color:'var(--fg-subtle)', fontSize:'0.75rem', pointerEvents:'none' }}>▾</span>
+      </div>
+    </div>
+  );
+}
+
+function ShiftCard({ turno, selected, onSelect }) {
+  return (
+    <div
+      onClick={() => onSelect(turno.id)}
+      style={{
+        padding: '14px 16px', borderRadius: 'var(--r)', cursor: 'pointer',
+        border: `1px solid ${selected ? 'var(--primary)' : 'var(--border)'}`,
+        background: selected ? 'oklch(0.5424 0.2454 293.0160 / 0.10)' : 'var(--bg-deep)',
+        transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 12,
+      }}
+    >
+      <div style={{
+        width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
+        border: `2px solid ${selected ? 'var(--primary)' : 'var(--border)'}`,
+        background: selected ? 'var(--primary)' : 'transparent',
+        transition: 'all 0.2s',
+      }} />
+      <div>
+        <p style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 700, fontSize: '0.875rem', color: 'var(--fg)' }}>{turno.label}</p>
+        <p style={{ fontSize: '0.75rem', color: 'var(--fg-muted)' }}>{turno.desc}</p>
+      </div>
+    </div>
+  );
+}
+
+function Step1({ data, onChange, errors }) {
+  return (
+    <div>
+      <p style={formStyles.stepLabel}>Paso 1 de 3</p>
+      <h2 style={formStyles.title}>Datos personales</h2>
+      <p style={formStyles.subtitle}>Información básica del nuevo trabajador.</p>
+      <div style={formStyles.fieldGroup}>
+        <InputField label="Nombre completo" placeholder="Ej. Ana García López" value={data.nombre} onChange={v => onChange('nombre', v)} error={errors.nombre} />
+        <div style={formStyles.fieldRow}>
+          <InputField label="Alias / Apodo" placeholder="Ej. Ana G." value={data.alias} onChange={v => onChange('alias', v)} />
+          <InputField label="Teléfono" type="tel" placeholder="+52 000 000 0000" value={data.telefono} onChange={v => onChange('telefono', v)} />
+        </div>
+        <InputField label="Correo electrónico" type="email" placeholder="ana@empresa.com" value={data.correo} onChange={v => onChange('correo', v)} error={errors.correo} />
+      </div>
+    </div>
+  );
+}
+
+function Step2({ data, onChange, errors }) {
+  return (
+    <div>
+      <p style={formStyles.stepLabel}>Paso 2 de 3</p>
+      <h2 style={formStyles.title}>Puesto y turno</h2>
+      <p style={formStyles.subtitle}>Define el rol del trabajador dentro de la organización.</p>
+      <div style={formStyles.fieldGroup}>
+        <SelectField label="Puesto" options={PUESTOS} value={data.puesto} onChange={v => onChange('puesto', v)} />
+        {errors.puesto && <p style={{ fontSize: '0.72rem', color: 'oklch(0.65 0.13 25)', marginTop: -10 }}>{errors.puesto}</p>}
+        <div>
+          <label style={formStyles.label}>Preferencia de turno</label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            {TURNOS.map(t => (
+              <ShiftCard key={t.id} turno={t} selected={data.turno === t.id} onSelect={v => onChange('turno', v)} />
+            ))}
+          </div>
+          {errors.turno && <p style={{ fontSize: '0.72rem', color: 'oklch(0.65 0.13 25)', marginTop: 6 }}>{errors.turno}</p>}
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+function Step3({ data, onChange, errors }) {
+  const [showPass, setShowPass] = useState(false);
+  return (
+    <div>
+      <p style={formStyles.stepLabel}>Paso 3 de 3</p>
+      <h2 style={formStyles.title}>Acceso a la plataforma</h2>
+      <p style={formStyles.subtitle}>Crea las credenciales de acceso para el trabajador.</p>
+      <div style={formStyles.fieldGroup}>
+        <div>
+          <label style={formStyles.label}>Contraseña temporal</label>
+          <div style={{ position: 'relative' }}>
+            <input
+              type={showPass ? 'text' : 'password'}
+              placeholder="Mínimo 8 caracteres"
+              value={data.password}
+              onChange={e => onChange('password', e.target.value)}
+              style={{ ...formStyles.input, borderColor: errors.password ? 'oklch(0.6 0.13 25)' : 'var(--border)' }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPass(!showPass)}
+              style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'var(--fg-muted)', cursor:'pointer', fontSize:'0.8rem' }}
+            >
+              {showPass ? 'Ocultar' : 'Ver'}
+            </button>
+          </div>
+          {errors.password && <p style={{ fontSize: '0.72rem', color: 'oklch(0.65 0.13 25)', marginTop: 4 }}>{errors.password}</p>}
+        </div>
+        <InputField
+          label="Confirmar contraseña"
+          type="password"
+          placeholder="Repite la contraseña"
+          value={data.confirm}
+          onChange={v => onChange('confirm', v)}
+          error={errors.confirm}
+        />
+        <div style={{ background:'var(--bg-deep)', border:'1px solid var(--border-sub)', borderRadius:'var(--r)', padding:'16px' }}>
+          <p style={{ fontSize:'0.78rem', fontWeight:600, color:'var(--fg-muted)', marginBottom:8 }}>Resumen del registro</p>
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            {[
+              ['Nombre', data.nombre || '—'],
+              ['Correo', data.correo || '—'],
+              ['Puesto', PUESTOS.find(p => p.id === data.puesto)?.label || '—'],
+              ['Turno', TURNOS.find(t => t.id === data.turno)?.label || '—'],
+            ].map(([k,v]) => (
+              <div key={k} style={{ display:'flex', justifyContent:'space-between' }}>
+                <span style={{ fontSize:'0.78rem', color:'var(--fg-subtle)' }}>{k}</span>
+                <span style={{ fontSize:'0.78rem', color:'var(--fg)', fontWeight:500 }}>{v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StepDone({ data }) {
+  return (
+    <div style={{ textAlign:'center', padding:'16px 0' }}>
+      <div style={{
+        width:72, height:72, borderRadius:'50%', margin:'0 auto 24px',
+        background:'oklch(0.5424 0.2454 293.0160 / 0.15)',
+        border:'2px solid var(--primary)',
+        display:'flex', alignItems:'center', justifyContent:'center',
+        fontSize:'1.8rem',
+        boxShadow:'0 0 30px var(--primary-glow)',
+      }}>📬</div>
+      <h2 style={{ ...formStyles.title, marginBottom:12 }}>¡Solicitud enviada!</h2>
+      <p style={{ ...formStyles.subtitle, maxWidth:380, margin:'0 auto 8px' }}>
+        Los datos de <strong style={{ color:'var(--fg)' }}>{data.nombre}</strong> fueron enviados al administrador.
+      </p>
+      <p style={{ ...formStyles.subtitle, maxWidth:380, margin:'0 auto 32px', fontSize:'0.82rem' }}>
+        El líder revisará y validará la información. Una vez confirmado, recibirás acceso a la plataforma en <strong style={{ color:'var(--primary)' }}>{data.correo}</strong>.
+      </p>
+      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+        <button
+          onClick={() => window.location.reload()}
+          style={{ ...formStyles.btnPrimary }}
+        >
+          Registrar otro trabajador
+        </button>
+        <a href="Schedule - Landing.html" style={{ ...formStyles.btnGhost, display:'block', textDecoration:'none', textAlign:'center', lineHeight:'1.5' }}>
+          Volver al inicio
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [step, setStep] = useState(1);
+  const [data, setData] = useState({
+    nombre: '', alias: '', telefono: '', correo: '',
+    puesto: '', turno: '', empleado_id: '',
+    password: '', confirm: '',
+  });
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  const update = (key, val) => {
+    setData(d => ({ ...d, [key]: val }));
+    setErrors(e => ({ ...e, [key]: '' }));
+  };
+
+  const validateStep = () => {
+    const errs = {};
+    if (step === 1) {
+      if (!data.nombre.trim()) errs.nombre = 'El nombre es obligatorio';
+      if (!data.correo.trim()) errs.correo = 'El correo es obligatorio';
+      else if (!/\S+@\S+\.\S+/.test(data.correo)) errs.correo = 'Correo no válido';
+    }
+    if (step === 2) {
+      if (!data.puesto) errs.puesto = 'Selecciona un puesto';
+      if (!data.turno) errs.turno = 'Selecciona un turno';
+    }
+    if (step === 3) {
+      if (!data.password || data.password.length < 8) errs.password = 'Mínimo 8 caracteres';
+      if (data.password !== data.confirm) errs.confirm = 'Las contraseñas no coinciden';
+    }
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const next = () => {
+    if (!validateStep()) return;
+    if (step === 3) {
+      setLoading(true);
+      setTimeout(() => { setLoading(false); setStep(4); }, 1200);
+    } else {
+      setStep(s => s + 1);
+    }
+  };
+
+  const back = () => setStep(s => s - 1);
+
+  return (
+    <div style={formStyles.card}>
+      {/* Logo */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:28 }}>
+        <a href="Schedule - Landing.html" style={formStyles.logo}>
+          <div style={formStyles.dot}></div>
+          Schedule
+        </a>
+        {step < 4 && (
+          <span style={{ fontSize:'0.75rem', color:'var(--fg-subtle)' }}>
+            Registro de empleado
+          </span>
+        )}
+      </div>
+
+      {/* Step bar */}
+      {step < 4 && (
+        <div style={formStyles.stepBar}>
+          {[1,2,3].map(n => (
+            <div key={n} style={formStyles.stepDot(step === n, step > n)} />
+          ))}
+        </div>
+      )}
+
+      {/* Steps */}
+      {step === 1 && <Step1 data={data} onChange={update} errors={errors} />}
+      {step === 2 && <Step2 data={data} onChange={update} errors={errors} />}
+      {step === 3 && <Step3 data={data} onChange={update} errors={errors} />}
+      {step === 4 && <StepDone data={data} />}
+
+      {/* Actions */}
+      {step < 4 && (
+        <div style={formStyles.row}>
+          {step > 1 && (
+            <button onClick={back} style={formStyles.btnGhost}>← Atrás</button>
+          )}
+          <button
+            onClick={next}
+            disabled={loading}
+            style={{ ...formStyles.btnPrimary, flex:1, opacity: loading ? 0.7 : 1 }}
+          >
+            {loading ? 'Registrando...' : step === 3 ? 'Completar registro' : 'Continuar →'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

@@ -956,9 +956,13 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
 
     const newLabelsList = [...labels];
 
+    const generateId = () => (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `etq_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
     if (createTab === 'label') {
       const newLabel: ShiftLabel = {
-        id: editingLabelId ? editingLabelId : Math.random().toString(36).substring(7),
+        id: editingLabelId ? editingLabelId : generateId(),
         name: createData.name,
         timeRange: createData.timeRange,
         type: createData.type,
@@ -975,7 +979,7 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
       const sequence: (string | null)[] = patternWeeksData.flat().map(id => id === '' ? null : id);
 
       const patternLabel: ShiftLabel = {
-        id: editingLabelId ? editingLabelId : Math.random().toString(36).substring(7),
+        id: editingLabelId ? editingLabelId : generateId(),
         name: createData.name,
         timeRange: 'Patrón Compuesto',
         type: 'pattern',
@@ -1042,31 +1046,32 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
   };
 
   return (
-    <div className="flex flex-col w-full h-full bg-[#0f1115]/80 backdrop-blur-md border border-gray-800/60 rounded-xl overflow-hidden font-sans text-gray-200 shadow-[0_0_40px_rgba(0,0,0,0.5)]">
+    <div className="flex flex-col w-full h-full overflow-hidden font-sans" style={{ background: 'var(--pr-bg)', color: 'var(--pr-fg)' }}>
 
       {/* HEADER */}
-      <header className="grid grid-cols-[1fr_auto_1fr] items-center p-4 border-b border-gray-800/80 bg-black/20">
+      <header className="grid grid-cols-[1fr_auto_1fr] items-center p-4" style={{ borderBottom: '1px solid var(--pr-bsub)', background: 'var(--pr-bg-deep)' }}>
 
         <div className="flex flex-col justify-self-start">
-          <h2 className="text-xl font-bold capitalize text-white flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-indigo-400" />
+          <h2 className="text-xl font-extrabold capitalize flex items-center gap-2" style={{ color: 'var(--pr-fg)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+            <Calendar className="w-5 h-5" style={{ color: 'var(--pr-primary)' }} />
             Calendario de Turnos
           </h2>
-          <p className="text-sm text-gray-400">Planifica tus horarios y reemplazos.</p>
+          <p className="text-sm" style={{ color: 'var(--pr-fgm)' }}>Planifica tus horarios y reemplazos.</p>
         </div>
 
-        <div className="flex items-center justify-center justify-self-center bg-[#1e2024]/80 backdrop-blur-sm rounded-xl p-1.5 border border-gray-700/50 shadow-xl">
-          <button onClick={prevMonth} className="p-2 hover:bg-gray-700/80 rounded-lg transition-colors cursor-pointer"><ChevronLeft className="w-6 h-6 text-gray-300" /></button>
-          <span className="min-w-[180px] text-center font-bold text-white capitalize text-lg tracking-wide select-none">
+        <div className="flex items-center justify-center justify-self-center rounded-xl p-1.5" style={{ background: 'var(--pr-bg-card)', border: '1px solid var(--pr-border)' }}>
+          <button onClick={prevMonth} className="p-2 rounded-lg transition-colors cursor-pointer hover:bg-white/5"><ChevronLeft className="w-5 h-5" style={{ color: 'var(--pr-fgm)' }} /></button>
+          <span className="min-w-[180px] text-center font-bold capitalize text-base tracking-wide select-none" style={{ color: 'var(--pr-fg)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
             {monthName} {yearName}
           </span>
-          <button onClick={nextMonth} className="p-2 hover:bg-gray-700/80 rounded-lg transition-colors cursor-pointer"><ChevronRight className="w-6 h-6 text-gray-300" /></button>
+          <button onClick={nextMonth} className="p-2 rounded-lg transition-colors cursor-pointer hover:bg-white/5"><ChevronRight className="w-5 h-5" style={{ color: 'var(--pr-fgm)' }} /></button>
         </div>
 
         <div className="flex justify-end justify-self-end">
           <button
             onClick={() => { setShowCreateModal(true); setEditingLabelId(null); setCreateTab('label'); setCreateData({ name: '', timeRange: '', type: 'work', color: 'bg-teal-500' }); setPatternWeeksData([Array(7).fill('')]); }}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-all shadow-lg shadow-indigo-900/40 hover:scale-105 cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-bold transition-all hover:opacity-90 hover:-translate-y-0.5 cursor-pointer"
+            style={{ background: 'var(--pr-primary)', boxShadow: '0 0 16px rgba(124,58,237,0.3)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}
           >
             <Plus className="w-4 h-4" /> Nuevo Patrón / Etiqueta
           </button>
@@ -1075,22 +1080,32 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
       </header>
 
       {/* TOP BAR: SEPARACIÓN DE ETIQUETAS Y PATRONES */}
-      <div className="flex flex-col bg-black/20 border-b border-gray-800/60 shrink-0">
+      <div className="flex flex-col shrink-0" style={{ background: 'var(--pr-bg-deep)', borderBottom: '1px solid var(--pr-bsub)' }}>
 
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 pb-2 border-b border-gray-800/40">
 
           <div className="flex items-center gap-4">
             {/* View Toggles */}
-            <div className="flex bg-[#16171a] p-1 rounded-lg border border-gray-800">
+            <div className="flex p-1 rounded-lg" style={{ background: 'var(--pr-bg-card)', border: '1px solid var(--pr-bsub)' }}>
               <button
                 onClick={() => { setActiveView('labels'); setActiveLabelId(null); }}
-                className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${activeView === 'labels' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-200'}`}
+                className="px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all cursor-pointer"
+                style={{
+                  background: activeView === 'labels' ? 'var(--pr-primary)' : 'transparent',
+                  color: activeView === 'labels' ? '#fff' : 'var(--pr-fgm)',
+                  fontFamily: "'Plus Jakarta Sans',sans-serif",
+                }}
               >
                 <Tag className="w-4 h-4" /> Etiquetas
               </button>
               <button
                 onClick={() => { setActiveView('patterns'); setActiveLabelId(null); }}
-                className={`px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${activeView === 'patterns' ? 'bg-amber-600 text-white shadow-md' : 'text-gray-400 hover:text-gray-200'}`}
+                className="px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all cursor-pointer"
+                style={{
+                  background: activeView === 'patterns' ? 'var(--pr-warn)' : 'transparent',
+                  color: activeView === 'patterns' ? '#fff' : 'var(--pr-fgm)',
+                  fontFamily: "'Plus Jakarta Sans',sans-serif",
+                }}
               >
                 <Layers className="w-4 h-4" /> Patrones
               </button>
@@ -1114,12 +1129,14 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
             <button
               onClick={handleUndo}
               disabled={history.length === 0}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold border transition-all duration-200
-                ${history.length > 0
-                  ? 'border-gray-600 text-white hover:bg-gray-800 hover:border-gray-400 cursor-pointer shadow-md'
-                  : 'border-transparent text-gray-600 bg-gray-800/30 cursor-not-allowed'
-                }
-              `}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all"
+              style={{
+                background: 'transparent',
+                border: `1px solid ${history.length > 0 ? 'var(--pr-border)' : 'var(--pr-bsub)'}`,
+                color: history.length > 0 ? 'var(--pr-fgm)' : 'var(--pr-fgs)',
+                cursor: history.length > 0 ? 'pointer' : 'not-allowed',
+                fontFamily: "'Plus Jakarta Sans',sans-serif",
+              }}
             >
               <Undo2 className="w-4 h-4" /> Deshacer
             </button>
@@ -1127,12 +1144,15 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
             <button
               onClick={handleSave}
               disabled={history.length === 0}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-bold transition-all duration-200 shadow-lg
-                ${history.length > 0
-                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/40 cursor-pointer'
-                  : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                }
-              `}
+              className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-bold transition-all hover:opacity-90"
+              style={{
+                background: history.length > 0 ? 'var(--pr-primary)' : 'var(--pr-bg-card)',
+                color: history.length > 0 ? '#fff' : 'var(--pr-fgs)',
+                boxShadow: history.length > 0 ? '0 0 16px rgba(124,58,237,0.3)' : 'none',
+                cursor: history.length > 0 ? 'pointer' : 'not-allowed',
+                fontFamily: "'Plus Jakarta Sans',sans-serif",
+                border: 'none',
+              }}
             >
               <Save className="w-4 h-4" /> Guardar Horario
             </button>
@@ -1200,10 +1220,10 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
       </div>
 
       {/* MAIN CONTENT AREA: CALENDAR + SIDEBAR */}
-      <div className="flex-1 flex overflow-hidden min-h-0 relative bg-transparent">
+      <div className="flex-1 flex overflow-hidden min-h-0 relative" style={{ background: 'var(--pr-bg)' }}>
 
         {/* CALENDAR GRID COLUMN */}
-        <div className="flex-1 flex flex-col p-4 overflow-hidden border-r border-gray-800/50">
+        <div className="flex-1 flex flex-col overflow-hidden">
 
           {isLoading && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -1214,51 +1234,39 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
             </div>
           )}
 
-          <div className="grid grid-cols-7 gap-3 mb-3 shrink-0">
-            {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map(day => (
-              <div key={day} className="text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-black/30 py-2 rounded-lg border border-gray-800/50">
+          <div className="grid grid-cols-7 gap-px mb-px shrink-0" style={{ background: 'var(--pr-border)' }}>
+            {['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'].map(day => (
+              <div key={day} className="text-center text-[11px] font-extrabold uppercase tracking-[0.1em] py-3"
+                style={{ color: 'var(--pr-fgs)', background: 'var(--pr-bg-deep)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
                 {day}
               </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-3 flex-1 overflow-y-auto pr-2 pb-4 custom-scrollbar">
+          <div
+            className="grid grid-cols-7 gap-px flex-1 overflow-hidden custom-scrollbar"
+            style={{ background: 'var(--pr-border)', gridAutoRows: '1fr' }}
+          >
             {calendarDays.map((day, idx) => {
               const dayAssignments = assignments.filter(a => a.dateStr === day.dateStr);
 
-              let cellBgClass = 'bg-[#1a1c20]/60';
-              let borderColorClass = 'border-gray-800/50';
-
-              if (dayAssignments.length === 1) {
-                const l = labels.find(l => l.id === dayAssignments[0].labelId);
-                if (l) {
-                  // Fallback for colors: extract the base color name and weight to use with opacity
-                  cellBgClass = `${l.color} bg-opacity-20`;
-                  borderColorClass = `${l.color.replace('bg-', 'border-')} border-opacity-40`;
-                }
-              } else if (dayAssignments.length > 1) {
-                cellBgClass = 'bg-gray-500 bg-opacity-20';
-                borderColorClass = 'border-gray-500 border-opacity-50';
-              }
+              const cellBg = day.isCurrentMonth ? 'var(--pr-bg-card)' : 'var(--pr-bg-deep)';
+              const cellOpacity = day.isCurrentMonth ? 1 : 0.5;
 
               return (
                 <div
                   key={`${day.dateStr}-${idx}`}
                   onClick={() => handleDayClick(day.dateStr)}
-                  className={`
-                    flex flex-col p-2.5 rounded-xl min-h-[120px] transition-all duration-200 border
-                    ${!day.isCurrentMonth ? 'opacity-40 hover:opacity-100' : ''}
-                    ${day.isToday ? 'ring-2 ring-indigo-500/80 shadow-[0_0_15px_rgba(99,102,241,0.2)]' : ''}
-                    ${cellBgClass}
-                    ${borderColorClass}
-                    ${activeLabelId ? 'cursor-pointer hover:shadow-lg hover:brightness-125' : 'cursor-default'}
-                    backdrop-blur-sm
-                  `}
+                  className={`flex flex-col p-2 overflow-hidden min-h-0 transition-colors ${activeLabelId ? 'cursor-pointer hover:brightness-125' : 'cursor-default'}`}
+                  style={{ background: cellBg, opacity: cellOpacity }}
                 >
-                  <div className="flex justify-between items-start mb-2 shrink-0">
-                    <span className={`text-[12px] font-bold w-6 h-6 flex items-center justify-center rounded-full
-                      ${day.isToday ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/50' : 'text-gray-300'}
-                    `}>
+                  <div className="flex justify-between items-start mb-1.5 shrink-0">
+                    <span className="text-[11px] font-extrabold w-6 h-6 flex items-center justify-center rounded-full"
+                      style={{
+                        background: day.isToday ? 'var(--pr-primary)' : 'transparent',
+                        color: day.isToday ? '#fff' : 'var(--pr-fg)',
+                        fontFamily: "'Plus Jakarta Sans',sans-serif",
+                      }}>
                       {day.dayNumber}
                     </span>
 
@@ -1576,19 +1584,6 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* NOTIFICACIONES */}
-      {notification && notification.isOpen && (
-        <div className="absolute bottom-4 right-4 z-[60] flex items-center gap-3 bg-[#1e2024] border border-gray-700 p-4 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.8)] animate-in slide-in-from-right-8 fade-in transition-all">
-          <div className={`p - 2 rounded - full ${notification.type === 'success' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-500'} `}>
-            {notification.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
-          </div>
-          <span className="text-sm font-bold text-gray-200">{notification.message}</span>
-          <button onClick={() => setNotification(null)} className="ml-4 text-gray-500 hover:text-white transition-colors cursor-pointer p-1">
-            <X className="w-4 h-4" />
-          </button>
         </div>
       )}
 

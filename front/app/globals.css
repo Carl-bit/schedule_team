@@ -1,26 +1,62 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #161b2a;
+  --foreground: #f0f2f9;
+
+  /* Purple Rain palette */
+  --pr-bg:        #161b2a;
+  --pr-bg-deep:   #0f1320;
+  --pr-bg-card:   #1c2138;
+  --pr-bg-card2:  #232944;
+  --pr-border:    #2e3650;
+  --pr-bsub:      #222840;
+  --pr-primary:   #7c3aed;
+  --pr-pri-dim:   #6d28d9;
+  --pr-pri-glow:  rgba(124, 58, 237, .2);
+  --pr-pri-fg:    #f5f3ff;
+  --pr-fg:        #f0f2f9;
+  --pr-fgm:       #8b97bc;
+  --pr-fgs:       #4a5270;
+  --pr-success:   #10b981;
+  --pr-warn:      #f59e0b;
+  --pr-red:       #ef4444;
+  --pr-cyan:      #06b6d4;
+  --pr-pink:      #db2777;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: 'Plus Jakarta Sans', var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background: var(--pr-bg);
+  color: var(--pr-fg);
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: -0.02em;
 }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--pr-border); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--pr-primary); }
+
+.custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--pr-border); border-radius: 99px; }
+
+/* Typewriter cursor */
+@keyframes pr-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+.pr-tw-cursor { animation: pr-blink .7s step-end infinite; }
+
+@keyframes pr-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .5; transform: scale(.8); }
+}
+.pr-pulse { animation: pr-pulse 2s infinite; }

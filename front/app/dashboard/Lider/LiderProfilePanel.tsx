@@ -9,11 +9,11 @@ interface MenuItemProps {
     label: string;
     onClick: () => void;
     active?: boolean;
-    badges?: { count: number; color: string; label: string }[];
+    badges?: { count: number; bg: string; color: string; label: string }[];
 }
 
 export default function LiderProfilePanel({ setVista, vistaActual }: { setVista: (vista: 'resume' | 'trabajadores' | 'proyectos' | 'catalogos' | 'solicitudes' | 'informe') => void; vistaActual: string }) {
-    const [badgeTrabajadores, setBadgeTrabajadores] = useState(0);
+    const [, setBadgeTrabajadores] = useState(0);
     const [badgeSolicitudes, setBadgeSolicitudes] = useState(0);
 
     useEffect(() => {
@@ -23,7 +23,7 @@ export default function LiderProfilePanel({ setVista, vistaActual }: { setVista:
 
                 const [empleadosRes, ausenciasRes] = await Promise.all([
                     fetch(`${API_BASE}/empleados`),
-                    fetch(`${API_BASE}/ausencias?t=${timestamp}`)
+                    fetch(`${API_BASE}/ausencias?t=${timestamp}`),
                 ]);
 
                 if (empleadosRes.ok) {
@@ -47,49 +47,23 @@ export default function LiderProfilePanel({ setVista, vistaActual }: { setVista:
     }, []);
 
     return (
-        <aside className="w-80 flex flex-col gap-6 h-full transition-all duration-300">
-
-            {/* Datos del perfil (mismo componente que Trabajador) */}
+        <aside className="flex flex-col h-full overflow-hidden"
+            style={{ background: 'var(--pr-bg-deep)', borderLeft: '1px solid var(--pr-bsub)' }}>
             <ContentProfile />
 
-            {/* Menú de navegación */}
-            <nav className="flex flex-col gap-3">
+            <nav className="py-2 flex-1 overflow-y-auto custom-scrollbar">
+                <MenuItem icon="🏠" label="Ver Resumen" active={vistaActual === 'resume'} onClick={() => setVista('resume')} />
+                <MenuItem icon="👥" label="Trabajadores" active={vistaActual === 'trabajadores'} onClick={() => setVista('trabajadores')} />
+                <MenuItem icon="📁" label="Proyectos" active={vistaActual === 'proyectos'} onClick={() => setVista('proyectos')} />
+                <MenuItem icon="⚙️" label="Catálogos" active={vistaActual === 'catalogos'} onClick={() => setVista('catalogos')} />
                 <MenuItem
-                    icon="home"
-                    label="Ver Resumen"
-                    active={vistaActual === 'resume'}
-                    onClick={() => setVista('resume')}
-                />
-                <MenuItem
-                    icon="group"
-                    label="Gestión Trabajadores"
-                    active={vistaActual === 'trabajadores'}
-                    onClick={() => setVista('trabajadores')}
-                />
-                <MenuItem
-                    icon="work"
-                    label="Proyectos y Equipos"
-                    active={vistaActual === 'proyectos'}
-                    onClick={() => setVista('proyectos')}
-                />
-                <MenuItem
-                    icon="settings"
-                    label="Catálogos"
-                    active={vistaActual === 'catalogos'}
-                    onClick={() => setVista('catalogos')}
-                />
-                <MenuItem
-                    icon="assignment"
+                    icon="📝"
                     label="Solicitudes"
                     active={vistaActual === 'solicitudes'}
                     onClick={() => setVista('solicitudes')}
+                    badges={badgeSolicitudes > 0 ? [{ count: badgeSolicitudes, bg: 'rgba(245,158,11,0.2)', color: 'var(--pr-warn)', label: 'pendientes' }] : []}
                 />
-                <MenuItem
-                    icon="assessment"
-                    label="Informes"
-                    active={vistaActual === 'informe'}
-                    onClick={() => setVista('informe')}
-                />
+                <MenuItem icon="📊" label="Informes" active={vistaActual === 'informe'} onClick={() => setVista('informe')} />
             </nav>
         </aside>
     );
@@ -99,32 +73,40 @@ function MenuItem({ icon, label, onClick, active = false, badges = [] }: MenuIte
     return (
         <button
             onClick={onClick}
-            className={`group flex items-center justify-between w-full p-4 rounded-xl border transition-all duration-200 text-left
-                ${active
-                    ? 'bg-blue-600/20 border-blue-500/30 scale-[1.02]'
-                    : 'bg-gray-800/40 border-white/5 hover:bg-blue-600/20 hover:border-blue-500/30 hover:scale-105 hover:origin-right hover:z-50'
-                }`}
+            className="flex items-center gap-3 w-full px-5 py-4 text-left transition-colors text-base font-semibold border-none cursor-pointer"
+            style={{
+                background: active ? 'rgba(124,58,237,0.14)' : 'transparent',
+                color: active ? 'var(--pr-primary)' : 'var(--pr-fgm)',
+                fontFamily: "'Plus Jakarta Sans',sans-serif",
+            }}
+            onMouseEnter={(e) => {
+                if (!active) {
+                    e.currentTarget.style.background = 'rgba(124,58,237,0.08)';
+                    e.currentTarget.style.color = 'var(--pr-fg)';
+                }
+            }}
+            onMouseLeave={(e) => {
+                if (!active) {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = 'var(--pr-fgm)';
+                }
+            }}
         >
-            <div className="flex items-center gap-3">
-                <span className={`material-icons transition-colors ${active ? 'text-cyan-400' : 'text-gray-400 group-hover:text-cyan-400'}`}>
-                    {icon}
-                </span>
-                <span className={`font-medium transition-colors ${active ? 'text-white' : 'text-gray-300 group-hover:text-white'}`}>
-                    {label}
-                </span>
-            </div>
+            <span className="w-5 text-center text-base flex-shrink-0">{icon}</span>
+            <span className="flex-1">{label}</span>
             {badges.length > 0 && (
-                <div className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1.5">
                     {badges.map((b, i) => (
                         <span
                             key={i}
                             title={b.label}
-                            className={`${b.color} text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-lg`}
+                            className="text-[11px] font-extrabold px-2 py-0.5 rounded-full"
+                            style={{ background: b.bg, color: b.color }}
                         >
                             {b.count}
                         </span>
                     ))}
-                </div>
+                </span>
             )}
         </button>
     );

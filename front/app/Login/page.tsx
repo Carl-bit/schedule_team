@@ -1,37 +1,29 @@
-'use client'; // Importante: Esto corre en el navegador
+'use client';
 
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import Square from '../components/Backgrounds/Square';
+import Link from 'next/link';
 import { API_BASE } from '@/app/lib/api';
 
 export default function LoginPage() {
     const router = useRouter();
 
-    // Estados para guardar lo que escribe el usuario
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
-        e.preventDefault(); // Evita que la página se recargue sola
+        e.preventDefault();
         setLoading(true);
         setError('');
 
         try {
-            // 1. Llamamos a TU API (La que probaste en Insomnia)
             const response = await fetch(`${API_BASE}/auth/login`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                // 🚨 VITAL: Esto permite que el navegador guarde la Cookie que envía el servidor
+                headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({
-                    correo: email,     // Usamos los nombres exactos que espera tu backend
-                    password: password
-                }),
+                body: JSON.stringify({ correo: email, password: password }),
             });
 
             const data = await response.json();
@@ -41,14 +33,8 @@ export default function LoginPage() {
             }
 
             localStorage.setItem('user_data', JSON.stringify(data.user));
-            // 2. Si todo sale bien...
-            // No necesitamos leer la cookie aquí manualmente. El navegador ya la guardó.
-            // Simplemente empujamos al usuario al Dashboard.
             console.log('Login exitoso:', data.mensaje);
-
-            // El Middleware interceptará esto y decidirá si va a /Lider o /Trabajador
             router.push('/dashboard');
-
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -57,88 +43,103 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="relative min-h-screen flex items-center justify-center bg-gray-900 text-white overflow-hidden">
-            <div className="absolute inset-0 z-0">
-                <Square
-                    direction="diagonal"
-                    speed={0.3}
-                    borderColor="#1e3a8aff"
-                    hoverFillColor="#06b6d4"
-                    squareSize={63}
-                />
-            </div>
+        <div className="relative min-h-screen flex items-center justify-center overflow-hidden"
+            style={{ background: 'var(--pr-bg)', color: 'var(--pr-fg)' }}>
+            {/* Glow background */}
+            <div className="absolute pointer-events-none" style={{
+                top: '20%', left: '50%', transform: 'translateX(-50%)',
+                width: 700, height: 500,
+                background: 'radial-gradient(ellipse at center, rgba(124,58,237,.18) 0%, transparent 70%)'
+            }}></div>
+            <div className="absolute inset-0 pointer-events-none" style={{
+                backgroundImage: 'linear-gradient(rgba(46,54,80,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(46,54,80,0.3) 1px, transparent 1px)',
+                backgroundSize: '60px 60px',
+                maskImage: 'radial-gradient(ellipse 80% 60% at 50% 40%, black 30%, transparent 100%)',
+                WebkitMaskImage: 'radial-gradient(ellipse 80% 60% at 50% 40%, black 30%, transparent 100%)',
+            }}></div>
 
-            <div className="relative z-10 w-full max-w-md bg-gray-800/80 backdrop-blur-md rounded-2xl shadow-xl p-8 border border-gray-700">
+            <div className="relative z-10 w-full max-w-md mx-4 rounded-2xl p-8 backdrop-blur-md"
+                style={{ background: 'rgba(28,33,56,0.85)', border: '1px solid var(--pr-border)', boxShadow: '0 40px 100px rgba(0,0,0,.6)' }}>
 
-                {/* Header del Login */}
                 <div className="text-center mb-8">
-                    <div className="w-16 h-16 bg-blue-600 rounded-xl mx-auto flex items-center justify-center mb-4 shadow-lg shadow-blue-500/30">
-                        👤
-                    </div>
-                    <h1 className="text-3xl font-bold mb-2">Schedule Test</h1>
-                    <p className="text-gray-400">Sistema de Registro de Horas</p>
+                    <Link href="/" className="inline-flex items-center gap-2 font-extrabold text-xl mb-6"
+                        style={{ fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--pr-primary)', boxShadow: '0 0 10px var(--pr-primary)' }}></span>
+                        Schedule
+                    </Link>
+                    <h1 className="text-2xl font-extrabold mb-1.5" style={{ fontFamily: "'Plus Jakarta Sans',sans-serif" }}>
+                        Bienvenido de nuevo
+                    </h1>
+                    <p className="text-sm" style={{ color: 'var(--pr-fgm)' }}>Sistema de Gestión de Equipos</p>
                 </div>
 
-                {/* Formulario */}
-                <form onSubmit={handleLogin} className="space-y-6">
-
-                    {/* Input Usuario */}
+                <form onSubmit={handleLogin} className="space-y-5">
                     <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-2">Correo Electrónico</label>
+                        <label className="block text-xs font-semibold mb-2 uppercase tracking-wider" style={{ color: 'var(--pr-fgs)' }}>
+                            Correo Electrónico
+                        </label>
                         <input
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="nombre@empresa.com"
-                            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
+                            className="w-full rounded-xl px-4 py-3 focus:outline-none transition-colors"
+                            style={{ background: 'var(--pr-bg-deep)', border: '1px solid var(--pr-border)', color: 'var(--pr-fg)' }}
+                            onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--pr-primary)')}
+                            onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--pr-border)')}
                             required
                         />
                     </div>
 
-                    {/* Input Contraseña */}
                     <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-2">Contraseña</label>
+                        <label className="block text-xs font-semibold mb-2 uppercase tracking-wider" style={{ color: 'var(--pr-fgs)' }}>
+                            Contraseña
+                        </label>
                         <input
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="••••••••"
-                            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors"
+                            className="w-full rounded-xl px-4 py-3 focus:outline-none transition-colors"
+                            style={{ background: 'var(--pr-bg-deep)', border: '1px solid var(--pr-border)', color: 'var(--pr-fg)' }}
+                            onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--pr-primary)')}
+                            onBlur={(e) => (e.currentTarget.style.borderColor = 'var(--pr-border)')}
                             required
                         />
                     </div>
 
-                    {/* Mensaje de Error (Si existe) */}
                     {error && (
-                        <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm text-center">
+                        <div className="p-3 rounded-xl text-sm text-center"
+                            style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.4)', color: 'var(--pr-red)' }}>
                             {error}
                         </div>
                     )}
 
-                    {/* Botón de Acción */}
                     <button
                         type="submit"
                         disabled={loading}
-                        className={`w-full py-3.5 rounded-lg font-bold shadow-lg shadow-blue-600/20 transition-all
-              ${loading
-                                ? 'bg-gray-600 cursor-not-allowed'
-                                : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 hover:scale-[1.02]'
-                            }`}
+                        className="w-full py-3.5 rounded-xl font-bold text-white transition-all hover:opacity-90 hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
+                        style={{
+                            background: loading ? 'var(--pr-bg-card2)' : 'var(--pr-primary)',
+                            boxShadow: loading ? 'none' : '0 0 30px rgba(124,58,237,.3)',
+                            fontFamily: "'Plus Jakarta Sans',sans-serif"
+                        }}
                     >
                         {loading ? 'Verificando...' : 'Iniciar Sesión'}
                     </button>
-
                 </form>
 
-                {/* Ayuda visual para pruebas (Puedes borrar esto luego) */}
-                <div className="mt-8 pt-6 border-t border-gray-700 text-xs text-gray-500 text-center">
+                <div className="mt-8 pt-6 text-xs text-center" style={{ borderTop: '1px solid var(--pr-bsub)', color: 'var(--pr-fgs)' }}>
                     <p>Credenciales de prueba:</p>
                     <div className="mt-2 space-y-1">
-                        <p>Jefe: <span className="text-blue-400">carlos@empresa.com</span> / admin123</p>
-                        <p>Trabajador: <span className="text-purple-400">ana@empresa.com</span> / ana123</p>
+                        <p>Líder: <span style={{ color: 'var(--pr-primary)' }}>carlos@empresa.com</span> / admin123</p>
+                        <p>Trabajador: <span style={{ color: 'var(--pr-success)' }}>ana@empresa.com</span> / ana123</p>
                     </div>
                 </div>
 
+                <Link href="/" className="block text-center mt-6 text-xs hover:text-white transition-colors" style={{ color: 'var(--pr-fgm)' }}>
+                    ← Volver al inicio
+                </Link>
             </div>
         </div>
     );

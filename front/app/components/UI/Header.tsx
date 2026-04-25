@@ -1,14 +1,18 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { API_BASE } from '@/app/lib/api';
+import { useUser } from '@/app/hooks/useUser';
 
 interface HeaderProps {
     titulo?: string;
+    empresa?: string;
 }
 
-export default function Header({ titulo = 'Panel' }: HeaderProps) {
+export default function Header({ titulo = 'Panel', empresa = 'Empresa Demo' }: HeaderProps) {
     const router = useRouter();
+    const { user } = useUser();
 
     const handleLogout = async () => {
         try {
@@ -23,18 +27,93 @@ export default function Header({ titulo = 'Panel' }: HeaderProps) {
         }
     };
 
+    const fechaHoy = new Date().toLocaleDateString('es-ES', {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+    });
+
+    const alias = user?.alias_empleado || user?.nombre_empleado?.split(' ')[0] || 'Usuario';
+
     return (
-        <header className="bg-gradient-to-r from-slate-900 to-slate-900/90 border-b border-gray-700/50 h-16 flex items-center justify-between px-6 shadow-lg z-50">
-            <h2 className="text-gray-300 font-medium text-lg">{titulo}</h2>
-            <button
-                onClick={handleLogout}
-                className="group flex items-center gap-2 bg-blue-500/10 hover:bg-red-500/10 text-blue-500 hover:text-red-500 border border-blue-500/20 hover:border-red-500/20 px-4 py-2 rounded-lg transition-all text-sm font-bold"
-            >
-                <span className="material-icons transition-transform group-hover:scale-110">
-                    logout
+        <header
+            className="h-20 flex items-center justify-between px-8 z-50 flex-shrink-0"
+            style={{
+                background: 'var(--pr-bg-deep)',
+                borderBottom: '1px solid var(--pr-bsub)',
+            }}
+        >
+            {/* Left: logo + empresa */}
+            <div className="flex items-center gap-4">
+                <Link
+                    href="/"
+                    className="flex items-center gap-2 font-extrabold text-base"
+                    style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", color: 'var(--pr-fg)' }}
+                >
+                    <span
+                        className="w-2 h-2 rounded-full"
+                        style={{ background: 'var(--pr-primary)', boxShadow: '0 0 8px var(--pr-primary)' }}
+                    ></span>
+                    Schedule
+                </Link>
+                <div className="h-5 w-px" style={{ background: 'var(--pr-bsub)' }}></div>
+                <span
+                    className="px-3 py-1 rounded-full text-xs font-semibold"
+                    style={{
+                        background: 'var(--pr-bsub)',
+                        color: 'var(--pr-fgm)',
+                        fontFamily: "'Plus Jakarta Sans',sans-serif",
+                    }}
+                >
+                    {empresa}
                 </span>
-                Cerrar Sesión
-            </button>
+            </div>
+
+            {/* Center: titulo */}
+            
+
+            {/* Right: fecha + alias + logout */}
+            <div className="flex items-center gap-5">
+                <span
+                    className="hidden md:block text-sm"
+                    style={{ color: 'var(--pr-fgs)' }}
+                >
+                    {fechaHoy}
+                </span>
+                <div className="h-6 w-px hidden md:block" style={{ background: 'var(--pr-bsub)' }}></div>
+                <div className="flex items-center gap-3">
+                    <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-extrabold text-white"
+                        style={{ background: 'var(--pr-primary)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}
+                    >
+                        {alias.charAt(0).toUpperCase()}
+                    </div>
+                    <span
+                        className="text-base font-semibold"
+                        style={{ color: 'var(--pr-fg)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}
+                    >
+                        {alias}
+                    </span>
+                </div>
+                {/* spacer between user and logout */}
+                <div className="w-8" />
+                <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors hover:text-white"
+                    style={{
+                        background: 'transparent',
+                        border: '1px solid var(--pr-border)',
+                        color: 'var(--pr-fgm)',
+                        fontFamily: "'Plus Jakarta Sans',sans-serif",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--pr-primary)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--pr-border)')}
+                >
+                    <span className="material-icons" style={{ fontSize: 16 }}>logout</span>
+                    Cerrar Sesión
+                </button>
+            </div>
         </header>
     );
 }
