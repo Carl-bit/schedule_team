@@ -7,6 +7,8 @@ services:
       POSTGRES_USER: schedule_user
       POSTGRES_PASSWORD: 258963
       POSTGRES_DB: schedule_db
+      TZ: America/Mexico_City
+      PGTZ: America/Mexico_City
     ports:
       - "5432:5432"
     volumes:
@@ -48,6 +50,7 @@ services:
       DB_HOST: db
       DB_PORT: 5432
       CORS_ORIGIN: "*"
+      TZ: America/Mexico_City
     ports:
       - "3019:3000"
     depends_on:

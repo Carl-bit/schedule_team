@@ -7,6 +7,11 @@ const getEtiquetas = asyncHandler(async (req, res) => {
     res.json(etiquetas);
 });
 
+const getEtiquetasCompartidas = asyncHandler(async (req, res) => {
+    const etiquetas = await EtiquetaService.getEtiquetasCompartidas();
+    res.json(etiquetas);
+});
+
 const createEtiqueta = asyncHandler(async (req, res) => {
     const newEtiqueta = await EtiquetaService.createEtiqueta(req.body);
     res.status(201).json(newEtiqueta);
@@ -29,6 +34,7 @@ const deleteEtiqueta = asyncHandler(async (req, res) => {
 
 module.exports = {
     getEtiquetas,
+    getEtiquetasCompartidas,
     createEtiqueta,
     updateEtiqueta,
     deleteEtiqueta

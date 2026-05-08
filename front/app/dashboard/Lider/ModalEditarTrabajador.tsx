@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
 
 import { API_BASE } from '@/app/lib/api';
+import { notifyError } from '@/app/hooks/useNotify';
 
 interface Empleado {
     empleado_id: string;
@@ -63,11 +64,15 @@ export default function ModalEditarTrabajador({ empleado, onClose, onSuccess }: 
             if (res.ok) {
                 onSuccess();
             } else {
-                const data = await res.json();
-                setError(data.error || 'Error al actualizar');
+                const data = await res.json().catch(() => ({}));
+                const msg = data.error || 'Error al actualizar';
+                setError(msg);
+                notifyError(msg);
             }
         } catch (err) {
+            console.error(err);
             setError('Error de conexión');
+            notifyError('Error de conexion');
         } finally {
             setLoading(false);
         }

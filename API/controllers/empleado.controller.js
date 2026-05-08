@@ -55,6 +55,21 @@ const changePassword = asyncHandler(async (req, res) => {
     res.json({ message: "Contraseña actualizada correctamente" });
 });
 
+// Reset admin: cambia la contrasena por correo, sin verificar la anterior
+const adminResetPassword = asyncHandler(async (req, res) => {
+    const { correo, newPassword } = req.body;
+    if (!correo) throw new AppError("Falta el correo.");
+    if (!newPassword || newPassword.length < 6) {
+        throw new AppError("La contrasena debe tener al menos 6 caracteres.");
+    }
+    const updated = await empleadoService.resetPasswordByEmail(correo, newPassword);
+    if (!updated) throw new AppError("No existe un empleado con ese correo.", 404);
+    res.json({
+        message: "Contrasena reseteada correctamente",
+        empleado: updated
+    });
+});
+
 const deleteEmpleado = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const empleadoBorrado = await empleadoService.deleteEmpleado(id);
@@ -81,5 +96,6 @@ module.exports = {
     updateEmpleado,
     deleteEmpleado,
     loginEmpleado,
-    changePassword
+    changePassword,
+    adminResetPassword
 };

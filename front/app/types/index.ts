@@ -58,4 +58,18 @@ export interface SolicitudCobertura {
     estado: string;
     motivo_rechazo: string | null;
     created_at: string;
+    ausencia_id?: string | null;
+    // Mapa fecha (YYYY-MM-DD) -> etiqueta_ids[]. Acepta string[] como legacy (aplica a todos los dias).
+    etiquetas_cobertura?: Record<string, string[]> | string[] | null;
+}
+
+export interface EtiquetaHorario {
+    etiqueta_id: string;
+    empleado_id: string;
+    nombre: string;
+    rango_horas: string;
+    color: string;
+    tipo: string;
+    secuencia_patron?: unknown;
+    compartida?: boolean;
 }

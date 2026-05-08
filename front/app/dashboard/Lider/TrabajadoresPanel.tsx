@@ -6,6 +6,7 @@ import ModalEditarTrabajador from './ModalEditarTrabajador';
 
 import { API_BASE } from '@/app/lib/api';
 import type { Empleado } from '@/app/types';
+import { notifySuccess, notifyError } from '@/app/hooks/useNotify';
 
 export default function TrabajadoresPanel() {
     const [empleados, setEmpleados] = useState<Empleado[]>([]);
@@ -37,6 +38,7 @@ export default function TrabajadoresPanel() {
 
     const handleDelete = async (id: string) => {
         setErrorMsg('');
+        const target = empleados.find(e => e.empleado_id === id);
         try {
             const res = await fetch(`${API_BASE}/empleados/${id}`, {
                 method: 'DELETE',
@@ -44,12 +46,17 @@ export default function TrabajadoresPanel() {
             if (res.ok) {
                 setEmpleados(prev => prev.filter(e => e.empleado_id !== id));
                 setEliminando(null);
+                notifySuccess(`Trabajador ${target?.nombre_empleado || ''} eliminado`);
             } else {
-                const data = await res.json();
-                setErrorMsg(data.error || 'Error al eliminar');
+                const data = await res.json().catch(() => ({}));
+                const msg = data.error || 'Error al eliminar';
+                setErrorMsg(msg);
+                notifyError(msg);
             }
         } catch (err) {
+            console.error(err);
             setErrorMsg('Error de conexión al eliminar');
+            notifyError('Error de conexion al eliminar');
         }
     };
 
@@ -199,6 +206,7 @@ export default function TrabajadoresPanel() {
                     onSuccess={() => {
                         setShowModalNuevo(false);
                         fetchEmpleados();
+                        notifySuccess('Trabajador creado correctamente');
                     }}
                 />
             )}
@@ -209,8 +217,10 @@ export default function TrabajadoresPanel() {
                     empleado={editando}
                     onClose={() => setEditando(null)}
                     onSuccess={() => {
+                        const nombre = editando?.nombre_empleado || 'trabajador';
                         setEditando(null);
                         fetchEmpleados();
+                        notifySuccess(`${nombre} actualizado correctamente`);
                     }}
                 />
             )}

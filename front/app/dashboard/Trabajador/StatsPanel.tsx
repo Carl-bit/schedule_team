@@ -24,7 +24,7 @@ interface AssignedShift {
     source: 'plan' | 'registro';
 }
 
-export default function StatsPanel({ empleado_id = 'USER_ANA', labels = [] }: { empleado_id?: string, labels?: ShiftLabel[] }) {
+export default function StatsPanel({ empleado_id, labels = [] }: { empleado_id?: string, labels?: ShiftLabel[] }) {
     const [assignments, setAssignments] = useState<AssignedShift[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [selectedDayDetails, setSelectedDayDetails] = useState<string | null>(null);
@@ -44,6 +44,7 @@ export default function StatsPanel({ empleado_id = 'USER_ANA', labels = [] }: { 
     // We should ideally pass assignments from the parent or a global state,
     // but if StatsPanel is independent, it fetches its own data.
     useEffect(() => {
+        if (!empleado_id) return;
         const fetchStatsData = async () => {
             setIsLoading(true);
             try {
@@ -55,18 +56,20 @@ export default function StatsPanel({ empleado_id = 'USER_ANA', labels = [] }: { 
 
                 let allMapped: AssignedShift[] = [];
 
+                // Helpers UTC: timestamps en BD son "literales sin TZ", leer con getUTC*
+                const dateStrUTC = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+
                 if (planRes.ok) {
                     const planData = await planRes.json();
                     const mappedPlan = planData.map((item: any) => {
                         const date = new Date(item.inicio_turno);
-                        const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                        const dateStr = dateStrUTC(date);
 
                         let baseDiffH = 0;
                         if (item.fin_turno) {
                             const fin = new Date(item.fin_turno);
-                            const flatStart = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), 0));
-                            const flatEnd = new Date(Date.UTC(fin.getFullYear(), fin.getMonth(), fin.getDate(), fin.getHours(), fin.getMinutes(), 0));
-                            baseDiffH = (flatEnd.getTime() - flatStart.getTime()) / (1000 * 3600);
+                            // Diff directa en ms (ambos timestamps son comparables como instantes)
+                            baseDiffH = (fin.getTime() - date.getTime()) / (1000 * 3600);
                         }
 
                         return {
@@ -85,19 +88,14 @@ export default function StatsPanel({ empleado_id = 'USER_ANA', labels = [] }: { 
                     const horaData = await horaRes.json();
                     const mappedHora = horaData.map((item: any) => {
                         const date = new Date(item.inicio_trabajo);
-                        const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                        const dateStr = dateStrUTC(date);
 
                         let baseDiffH = 0;
                         if (item.fin_trabajo) {
                             const fin = new Date(item.fin_trabajo);
-                            const flatStart = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), 0));
-                            const flatEnd = new Date(Date.UTC(fin.getFullYear(), fin.getMonth(), fin.getDate(), fin.getHours(), fin.getMinutes(), 0));
-                            baseDiffH = (flatEnd.getTime() - flatStart.getTime()) / (1000 * 3600);
+                            baseDiffH = (fin.getTime() - date.getTime()) / (1000 * 3600);
                         } else {
-                            const now = new Date();
-                            const flatStart = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours(), date.getMinutes(), 0));
-                            const flatEnd = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes(), 0));
-                            baseDiffH = (flatEnd.getTime() - flatStart.getTime()) / (1000 * 3600);
+                            baseDiffH = (Date.now() - date.getTime()) / (1000 * 3600);
                         }
 
                         return {

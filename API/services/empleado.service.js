@@ -87,6 +87,18 @@ const updatePassword = async (id, newPassword) => {
   return result.rows[0];
 };
 
+// 4.2 RESETEAR CONTRASEÑA POR CORREO (uso admin: cuando se olvido la pass)
+const resetPasswordByEmail = async (email, newPassword) => {
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  const result = await pool.query(
+    `UPDATE empleados SET password_hash = $1
+     WHERE correo_empleado = $2
+     RETURNING empleado_id, correo_empleado, nombre_empleado`,
+    [passwordHash, email]
+  );
+  return result.rows[0];
+};
+
 // 5. ELIMINAR EMPLEADO 🆕
 const deleteEmpleado = async (id) => {
   const query = 'DELETE FROM empleados WHERE empleado_id = $1 RETURNING *';
@@ -121,5 +133,6 @@ module.exports = {
   updateEmpleado,
   deleteEmpleado,
   verifyCredentials,
-  updatePassword
+  updatePassword,
+  resetPasswordByEmail
 };

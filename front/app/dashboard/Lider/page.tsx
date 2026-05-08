@@ -1,11 +1,11 @@
 "use client";
 import { useState } from 'react';
 import styles from './dashboard.module.css';
-import LiderContentController from "./LiderContentController";
+import LiderContentController, { type LiderVista } from "./LiderContentController";
 import LiderProfilePanel from "./LiderProfilePanel";
 
 export default function LiderPage() {
-    const [vista, setVista] = useState<'resume' | 'trabajadores' | 'proyectos' | 'catalogos' | 'solicitudes' | 'informe'>('resume');
+    const [vista, setVista] = useState<LiderVista>('resume');
 
     return (
         <div className={styles.dashboardGrid}>

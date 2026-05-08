@@ -18,6 +18,8 @@ interface ShiftLabel {
   type: ShiftType;
   // Secuencia de turnos (identificadores de etiquetas) o turnos generados al vuelo
   patternSequence?: (string | null)[];
+  // true = creada por el lider y compartida con todos. No se puede editar/eliminar desde el trabajador.
+  compartida?: boolean;
 }
 
 type EstadoId = 1 | 2 | 3 | 4 | 5;
@@ -32,6 +34,7 @@ interface AssignedShift {
 
 import { API_BASE } from '@/app/lib/api';
 import { getEstadoStyle } from '@/app/lib/constants';
+import { useActiveLabel, useCalendarCommand, setHistoryHas } from './calendarStore';
 
 const getEstadoInfo = (estadoId: EstadoId) => {
   const s = getEstadoStyle(estadoId);
@@ -208,7 +211,7 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
   const [labels, setLabels] = useState<ShiftLabel[]>([]);
   const [assignments, setAssignments] = useState<AssignedShift[]>([]);
   const [history, setHistory] = useState<AssignedShift[][]>([]);
-  const [activeLabelId, setActiveLabelId] = useState<string | null>(null);
+  const [activeLabelId, setActiveLabelId] = useActiveLabel();
 
   // Estado Modales
   const [showPatternModal, setShowPatternModal] = useState<{ isOpen: boolean; startDateStr: string | null }>({ isOpen: false, startDateStr: null });
@@ -235,7 +238,6 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
   const [patternWeeksData, setPatternWeeksData] = useState<string[][]>([Array(7).fill('')]);
 
   // View Toggle para la lista superior
-  const [activeView, setActiveView] = useState<'labels' | 'patterns'>('labels');
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -267,7 +269,8 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
             timeRange: et.rango_horas,
             color: et.color,
             type: et.tipo,
-            patternSequence: et.secuencia_patron
+            patternSequence: et.secuencia_patron,
+            compartida: !!et.compartida,
           }));
           setLabels(currentKnownLabels);
         }
@@ -292,24 +295,52 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
           return virtualId;
         };
 
+        // Resuelve label para un plan que viene de cobertura aceptada.
+        // Prioridad: 1) etiqueta del catalogo (caso 1), 2) virtual "Reemplazo" si solo hay solicitud_cobertura_id.
+        const resolveCoberturaLabel = (etiquetaId: string | null, solicitudCobId: string | null, timeRangeStr: string): string | null => {
+          if (etiquetaId) {
+            const et = currentKnownLabels.find(l => l.id === etiquetaId);
+            if (et) return et.id;
+          }
+          if (solicitudCobId) {
+            const virtualId = `VIRTUAL_COB_PLAN_${solicitudCobId}_${timeRangeStr}`;
+            if (!currentKnownLabels.find(l => l.id === virtualId)) {
+              const vl: ShiftLabel = {
+                id: virtualId,
+                name: 'Reemplazo',
+                timeRange: timeRangeStr,
+                color: 'bg-purple-600',
+                type: 'work'
+              };
+              currentKnownLabels.push(vl);
+              newVirtualLabels.push(vl);
+            }
+            return virtualId;
+          }
+          return null;
+        };
+
+        // Helpers: el backend guarda timestamps "literales" sin TZ.
+        // Node pg los parsea como fechas locales. Al enviarlos por JSON se convierten a UTC,
+        // pero al hacer new Date() en el frontend (si comparte TZ) vuelven a ser la hora local exacta.
+        const dateStrLocal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const hmLocal = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
         if (planRes.ok) {
           const planData = await planRes.json();
           const mappedPlan = planData.map((item: any) => {
             const date = new Date(item.inicio_turno);
-            const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            const dateStr = dateStrLocal(date);
 
-            const inicioH = date.getHours().toString().padStart(2, '0');
-            const inicioM = date.getMinutes().toString().padStart(2, '0');
-
-            let timeRangeStr = `${inicioH}:${inicioM} - ??:??`;
+            let timeRangeStr = `${hmLocal(date)} - ??:??`;
             if (item.fin_turno) {
               const finDate = new Date(item.fin_turno);
-              const finH = finDate.getHours().toString().padStart(2, '0');
-              const finM = finDate.getMinutes().toString().padStart(2, '0');
-              timeRangeStr = `${inicioH}:${inicioM} - ${finH}:${finM}`;
+              timeRangeStr = `${hmLocal(date)} - ${hmLocal(finDate)}`;
             }
 
-            const matchedLabelId = findOrCreateLabel(timeRangeStr, false, item.plan_id);
+            // Si viene de cobertura, intentar mapear a la etiqueta original (o virtual "Reemplazo")
+            const cobLabelId = resolveCoberturaLabel(item.etiqueta_id || null, item.solicitud_cobertura_id || null, timeRangeStr);
+            const matchedLabelId = cobLabelId || findOrCreateLabel(timeRangeStr, false, item.plan_id);
 
             return {
               id: item.plan_id,
@@ -326,17 +357,12 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
           const horaData = await horaRes.json();
           const mappedHora = horaData.map((item: any) => {
             const date = new Date(item.inicio_trabajo);
-            const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            const dateStr = dateStrLocal(date);
 
-            const inicioH = date.getHours().toString().padStart(2, '0');
-            const inicioM = date.getMinutes().toString().padStart(2, '0');
-            let timeRangeStr = `${inicioH}:${inicioM} - En curso`;
-
+            let timeRangeStr = `${hmLocal(date)} - En curso`;
             if (item.fin_trabajo) {
               const finDate = new Date(item.fin_trabajo);
-              const finH = finDate.getHours().toString().padStart(2, '0');
-              const finM = finDate.getMinutes().toString().padStart(2, '0');
-              timeRangeStr = `${inicioH}:${inicioM} - ${finH}:${finM}`;
+              timeRangeStr = `${hmLocal(date)} - ${hmLocal(finDate)}`;
             }
 
             const matchedLabelId = findOrCreateLabel(timeRangeStr, true, item.registro_id);
@@ -360,7 +386,6 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
               const mappedAus = ausData.map((aus: any) => {
                 const inicioDate = new Date(aus.inicio_ausencia);
                 const finDate = new Date(aus.fin_ausencia);
-                const dateStr = `${inicioDate.getFullYear()}-${String(inicioDate.getMonth() + 1).padStart(2, '0')}-${String(inicioDate.getDate()).padStart(2, '0')}`;
 
                 // Find matching ausencia label by motivo
                 let matchedLabelId = currentKnownLabels.find(l =>
@@ -382,11 +407,12 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
                   matchedLabelId = virtualId;
                 }
 
-                // For multi-day ausencias, create one entry per day
+                // Iterar dias usando local para no alterar dias si las horas son 00:00
                 const entries: AssignedShift[] = [];
-                const current = new Date(inicioDate);
-                while (current <= finDate) {
-                  const ds = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+                const current = new Date(inicioDate.getFullYear(), inicioDate.getMonth(), inicioDate.getDate());
+                const endLocal = new Date(finDate.getFullYear(), finDate.getMonth(), finDate.getDate()).getTime();
+                while (current.getTime() <= endLocal) {
+                  const ds = dateStrLocal(current);
                   entries.push({
                     id: `${aus.ausencia_id}_${ds}`,
                     dateStr: ds,
@@ -410,8 +436,8 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
           try {
             const cobData = await coberturasRes.json();
             if (Array.isArray(cobData)) {
-              // Solo mostrar pendientes y aceptadas (no rechazadas)
-              const relevantCob = cobData.filter((c: any) => c.estado === 'pendiente' || c.estado === 'aceptada');
+              // Solo coberturas pendientes: las aceptadas ya viven en planificacion_horaria
+              const relevantCob = cobData.filter((c: any) => c.estado === 'pendiente');
               const mappedCob = relevantCob.map((cob: any) => {
                 const inicioDate = new Date(cob.fecha_inicio);
                 const finDate = new Date(cob.fecha_fin);
@@ -431,11 +457,12 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
                   newVirtualLabels.push(virtualLabel);
                 }
 
-                // Create one entry per day in the range
+                // Iterar dias usando local
                 const entries: AssignedShift[] = [];
-                const current = new Date(inicioDate);
-                while (current <= finDate) {
-                  const ds = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+                const current = new Date(inicioDate.getFullYear(), inicioDate.getMonth(), inicioDate.getDate());
+                const endLocal = new Date(finDate.getFullYear(), finDate.getMonth(), finDate.getDate()).getTime();
+                while (current.getTime() <= endLocal) {
+                  const ds = dateStrLocal(current);
                   entries.push({
                     id: `COB_${cob.solicitud_id}_${ds}`,
                     dateStr: ds,
@@ -477,6 +504,24 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
   const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
   const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
 
+  // Sincroniza el estado de historial al store global para habilitar/deshabilitar undo/save desde el sidebar
+  useEffect(() => { setHistoryHas(history.length > 0); }, [history]);
+
+  // Recibe comandos del sidebar
+  useCalendarCommand((cmd) => {
+    if (cmd === 'create') {
+      setShowCreateModal(true);
+      setEditingLabelId(null);
+      setCreateTab('label');
+      setCreateData({ name: '', timeRange: '', type: 'work', color: 'bg-teal-500' });
+      setPatternWeeksData([Array(7).fill('')]);
+    } else if (cmd === 'undo') {
+      handleUndo();
+    } else if (cmd === 'save') {
+      handleSave();
+    }
+  });
+
   const monthName = currentDate.toLocaleString('es-ES', { month: 'long' });
   const yearName = currentDate.getFullYear();
 
@@ -504,8 +549,11 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
     const startDayOfWeek = getDayOfWeekIndex(firstDay);
     const startDate = addDays(firstDay, -startDayOfWeek);
 
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const totalCells = Math.ceil((startDayOfWeek + daysInMonth) / 7) * 7;
+
     const days = [];
-    for (let i = 0; i < 42; i++) {
+    for (let i = 0; i < totalCells; i++) {
       const currentDay = addDays(startDate, i);
       days.push({
         dateObj: currentDay,
@@ -520,9 +568,8 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
 
   const activeLabel = labels.find(l => l.id === activeLabelId);
 
-  // Filtrado de etiquetas para las vistas
+  // Solo se mantiene para el modal de creacion de patrones (selector de etiquetas regulares)
   const regularLabels = labels.filter(l => l.type !== 'pattern' && !l.id.startsWith('VIRTUAL_'));
-  const patternLabels = labels.filter(l => l.type === 'pattern' && !l.id.startsWith('VIRTUAL_'));
 
   // Historial helper
   const updateAssignmentsState = (newAssignments: AssignedShift[]) => {
@@ -960,25 +1007,19 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
       ? crypto.randomUUID()
       : `etq_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 
+    let processedLabel: ShiftLabel;
+
     if (createTab === 'label') {
-      const newLabel: ShiftLabel = {
+      processedLabel = {
         id: editingLabelId ? editingLabelId : generateId(),
         name: createData.name,
-        timeRange: createData.timeRange,
+        timeRange: createData.timeRange || '00:00 - 00:00',
         type: createData.type,
         color: createData.color
       };
-
-      if (editingLabelId) {
-        const index = newLabelsList.findIndex(l => l.id === editingLabelId);
-        if (index > -1) newLabelsList[index] = newLabel;
-      } else {
-        newLabelsList.push(newLabel);
-      }
     } else {
       const sequence: (string | null)[] = patternWeeksData.flat().map(id => id === '' ? null : id);
-
-      const patternLabel: ShiftLabel = {
+      processedLabel = {
         id: editingLabelId ? editingLabelId : generateId(),
         name: createData.name,
         timeRange: 'Patrón Compuesto',
@@ -986,51 +1027,51 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
         color: createData.color,
         patternSequence: sequence.length ? sequence : [null]
       };
-
-      if (editingLabelId) {
-        const index = newLabelsList.findIndex(l => l.id === editingLabelId);
-        if (index > -1) newLabelsList[index] = patternLabel;
-      } else {
-        newLabelsList.push(patternLabel);
-      }
     }
 
-    // Determine target label just processed to send to DB
-    const processedLabel = newLabelsList.find(l =>
-      (editingLabelId && l.id === editingLabelId) ||
-      (!editingLabelId && l.name === createData.name && l.timeRange === (createTab === 'label' ? createData.timeRange : 'Patrón Compuesto'))
-    );
+    if (editingLabelId) {
+      const index = newLabelsList.findIndex(l => l.id === editingLabelId);
+      if (index > -1) newLabelsList[index] = processedLabel;
+      else newLabelsList.push(processedLabel);
+    } else {
+      newLabelsList.push(processedLabel);
+    }
 
-    if (processedLabel) {
-      try {
-        const url = editingLabelId ? `${API_BASE}/etiquetas/${processedLabel.id}` : `${API_BASE}/etiquetas`;
-        const method = editingLabelId ? 'PUT' : 'POST';
+    try {
+      const url = editingLabelId ? `${API_BASE}/etiquetas/${processedLabel.id}` : `${API_BASE}/etiquetas`;
+      const method = editingLabelId ? 'PUT' : 'POST';
 
-        const payload = {
-          etiqueta_id: processedLabel.id,
-          empleado_id: empleado_id,
-          nombre: processedLabel.name,
-          rango_horas: processedLabel.timeRange,
-          color: processedLabel.color,
-          tipo: processedLabel.type,
-          secuencia_patron: processedLabel.patternSequence
-        };
+      const payload = {
+        etiqueta_id: processedLabel.id,
+        empleado_id: empleado_id,
+        nombre: processedLabel.name,
+        rango_horas: processedLabel.timeRange,
+        color: processedLabel.color,
+        tipo: processedLabel.type,
+        secuencia_patron: processedLabel.patternSequence ?? null,
+        compartida: false,
+      };
 
-        const res = await fetch(url, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
 
-        if (!res.ok) {
-          setNotification({ isOpen: true, message: "Error al guardar etiqueta en DB.", type: 'error' });
-          return; // Prevent updating UI if DB fails
-        }
-      } catch (err) {
-        console.error("Error al persistir etiqueta:", err);
-        setNotification({ isOpen: true, message: "Error de red al guardar etiqueta.", type: 'error' });
+      if (!res.ok) {
+        let apiMsg = `HTTP ${res.status}`;
+        try {
+          const body = await res.json();
+          if (body?.error) apiMsg = body.error;
+        } catch { /* body no es JSON */ }
+        console.error('Error API al guardar etiqueta:', apiMsg, payload);
+        setNotification({ isOpen: true, message: `Error al guardar etiqueta: ${apiMsg}`, type: 'error' });
         return;
       }
+    } catch (err) {
+      console.error("Error de red al persistir etiqueta:", err);
+      setNotification({ isOpen: true, message: "Error de red al guardar etiqueta.", type: 'error' });
+      return;
     }
 
     setLabels(newLabelsList);
@@ -1067,155 +1108,21 @@ export default function CalendarPanel({ empleado_id = 'USER_ANA' }: { empleado_i
           <button onClick={nextMonth} className="p-2 rounded-lg transition-colors cursor-pointer hover:bg-white/5"><ChevronRight className="w-5 h-5" style={{ color: 'var(--pr-fgm)' }} /></button>
         </div>
 
-        <div className="flex justify-end justify-self-end">
-          <button
-            onClick={() => { setShowCreateModal(true); setEditingLabelId(null); setCreateTab('label'); setCreateData({ name: '', timeRange: '', type: 'work', color: 'bg-teal-500' }); setPatternWeeksData([Array(7).fill('')]); }}
-            className="flex items-center gap-2 px-4 py-2 text-white rounded-lg text-sm font-bold transition-all hover:opacity-90 hover:-translate-y-0.5 cursor-pointer"
-            style={{ background: 'var(--pr-primary)', boxShadow: '0 0 16px rgba(124,58,237,0.3)', fontFamily: "'Plus Jakarta Sans',sans-serif" }}
-          >
-            <Plus className="w-4 h-4" /> Nuevo Patrón / Etiqueta
-          </button>
-        </div>
+        <div className="justify-self-end" />
 
       </header>
 
-      {/* TOP BAR: SEPARACIÓN DE ETIQUETAS Y PATRONES */}
-      <div className="flex flex-col shrink-0" style={{ background: 'var(--pr-bg-deep)', borderBottom: '1px solid var(--pr-bsub)' }}>
-
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 pb-2 border-b border-gray-800/40">
-
-          <div className="flex items-center gap-4">
-            {/* View Toggles */}
-            <div className="flex p-1 rounded-lg" style={{ background: 'var(--pr-bg-card)', border: '1px solid var(--pr-bsub)' }}>
-              <button
-                onClick={() => { setActiveView('labels'); setActiveLabelId(null); }}
-                className="px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all cursor-pointer"
-                style={{
-                  background: activeView === 'labels' ? 'var(--pr-primary)' : 'transparent',
-                  color: activeView === 'labels' ? '#fff' : 'var(--pr-fgm)',
-                  fontFamily: "'Plus Jakarta Sans',sans-serif",
-                }}
-              >
-                <Tag className="w-4 h-4" /> Etiquetas
-              </button>
-              <button
-                onClick={() => { setActiveView('patterns'); setActiveLabelId(null); }}
-                className="px-3 py-1.5 rounded-md text-sm font-bold flex items-center gap-2 transition-all cursor-pointer"
-                style={{
-                  background: activeView === 'patterns' ? 'var(--pr-warn)' : 'transparent',
-                  color: activeView === 'patterns' ? '#fff' : 'var(--pr-fgm)',
-                  fontFamily: "'Plus Jakarta Sans',sans-serif",
-                }}
-              >
-                <Layers className="w-4 h-4" /> Patrones
-              </button>
-            </div>
-
-            {/* Indicator Text */}
-            <div className={`
-              transition-all duration-300 px-4 py-1.5 rounded-lg border font-bold text-sm shadow-md
-              ${activeLabel
-                ? `${activeLabel.color.replace('bg-', 'text-').replace('500', '300')} bg-gray-900/80 border-gray-700 scale-105`
-                : 'text-gray-500 bg-transparent border-transparent'
-              }
-            `}>
-              {activeLabel
-                ? (activeLabel.type === 'pattern' ? `Aplicando patrón: ${activeLabel.name}` : `Seleccionado: ${activeLabel.name}`)
-                : `Selecciona un${activeView === 'labels' ? 'a etiqueta' : ' patrón'} para asignar`}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleUndo}
-              disabled={history.length === 0}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-bold transition-all"
-              style={{
-                background: 'transparent',
-                border: `1px solid ${history.length > 0 ? 'var(--pr-border)' : 'var(--pr-bsub)'}`,
-                color: history.length > 0 ? 'var(--pr-fgm)' : 'var(--pr-fgs)',
-                cursor: history.length > 0 ? 'pointer' : 'not-allowed',
-                fontFamily: "'Plus Jakarta Sans',sans-serif",
-              }}
-            >
-              <Undo2 className="w-4 h-4" /> Deshacer
-            </button>
-
-            <button
-              onClick={handleSave}
-              disabled={history.length === 0}
-              className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-bold transition-all hover:opacity-90"
-              style={{
-                background: history.length > 0 ? 'var(--pr-primary)' : 'var(--pr-bg-card)',
-                color: history.length > 0 ? '#fff' : 'var(--pr-fgs)',
-                boxShadow: history.length > 0 ? '0 0 16px rgba(124,58,237,0.3)' : 'none',
-                cursor: history.length > 0 ? 'pointer' : 'not-allowed',
-                fontFamily: "'Plus Jakarta Sans',sans-serif",
-                border: 'none',
-              }}
-            >
-              <Save className="w-4 h-4" /> Guardar Horario
-            </button>
-          </div>
-        </div>
-
-        {/* LST OF ITEMS BASED ON ACTIVE VIEW */}
-        <div className="p-4 pt-3 flex flex-wrap gap-3">
-          {(activeView === 'labels' ? regularLabels : patternLabels).length === 0 && (
-            <div className="text-sm text-gray-500 italic py-2">No tienes {activeView === 'labels' ? 'etiquetas' : 'patrones'} creados.</div>
-          )}
-
-          {(activeView === 'labels' ? regularLabels : patternLabels).map(label => {
-            const isActive = activeLabelId === label.id;
-            const isPattern = label.type === 'pattern';
-            return (
-              <div key={label.id} className="relative group">
-                <button
-                  onClick={() => setActiveLabelId(isActive ? null : label.id)}
-                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl border transition-all duration-300 cursor-pointer w-[200px] h-full
-                    ${isActive
-                      ? `border-white/20 bg-black/40 shadow-[0_0_20px_rgba(0,0,0,0.4)] ring-1 ring-white/10 scale-105`
-                      : 'border-gray-800/80 hover:border-gray-600 hover:bg-gray-800/40 bg-black/20'
-                    }`}
-                >
-                  {isPattern ? (
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${label.color} shadow-inner`}>
-                      <Layers className="w-4 h-4 text-white" />
-                    </div>
-                  ) : (
-                    <span className={`w-3.5 h-3.5 rounded-full shadow-sm ${label.color} ${isActive ? 'ring-2 ring-white/30 ring-offset-2 ring-offset-black/50' : ''}`}></span>
-                  )}
-
-                  <div className="flex flex-col items-start px-1 leading-tight text-left overflow-hidden">
-                    <span className={`text-[14px] font-bold truncate w-full ${isActive ? 'text-white' : 'text-gray-300'}`}>
-                      {label.name}
-                    </span>
-                    <span className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5 font-medium truncate w-full">
-                      <Clock className="w-3 h-3 opacity-70 shrink-0" /> {label.timeRange}
-                    </span>
-                  </div>
-                </button>
-
-                {/* Botones de acción, aparece al hacer hover en el contenedor padre */}
-                <div className="absolute -top-2 -right-2 flex gap-1 bg-black/60 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={(e) => openEditModal(label, e)}
-                    className="bg-indigo-500/90 text-white p-1.5 rounded-full shadow-lg border border-indigo-700 cursor-pointer hover:bg-indigo-400"
-                    title="Editar"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={(e) => handleDeleteLabel(label.id, e)}
-                    className="bg-red-500/90 text-white p-1.5 rounded-full shadow-lg border border-red-700 cursor-pointer hover:bg-red-400"
-                    title="Eliminar"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            )
-          })}
+      {/* INDICADOR de etiqueta activa (los filtros/etiquetas viven en el sidebar izquierdo) */}
+      <div className="flex items-center justify-center gap-3 px-4 py-2 shrink-0"
+        style={{ background: 'var(--pr-bg-deep)', borderBottom: '1px solid var(--pr-bsub)' }}>
+        <div className={`transition-all duration-300 px-4 py-1.5 rounded-lg border font-bold text-sm shadow-md
+          ${activeLabel
+            ? `${activeLabel.color.replace('bg-', 'text-').replace('500', '300')} bg-gray-900/80 border-gray-700`
+            : 'text-gray-500 bg-transparent border-transparent'
+          }`}>
+          {activeLabel
+            ? (activeLabel.type === 'pattern' ? `Aplicando patrón: ${activeLabel.name}` : `Seleccionado: ${activeLabel.name}`)
+            : 'Selecciona una etiqueta o patrón en el panel izquierdo'}
         </div>
       </div>
 

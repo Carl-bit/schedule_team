@@ -17,8 +17,14 @@ const getSolicitudesByLider = asyncHandler(async (req, res) => {
 });
 
 const createSolicitud = asyncHandler(async (req, res) => {
-    const { empleado_id, creado_por, motivo, descripcion, fecha_inicio, fecha_fin } = req.body;
-    const data = await solicitudService.createSolicitud(empleado_id, creado_por, motivo, descripcion, fecha_inicio, fecha_fin);
+    const { empleado_id, creado_por, motivo, descripcion, fecha_inicio, fecha_fin, ausencia_id, etiquetas_cobertura } = req.body;
+    const data = await solicitudService.createSolicitud(
+        empleado_id, creado_por, motivo, descripcion, 
+        fecha_inicio ? new Date(fecha_inicio) : null, 
+        fecha_fin ? new Date(fecha_fin) : null,
+        ausencia_id || null,
+        (etiquetas_cobertura && (Array.isArray(etiquetas_cobertura) ? etiquetas_cobertura.length > 0 : Object.keys(etiquetas_cobertura).length > 0)) ? etiquetas_cobertura : null
+    );
     res.status(201).json(data);
 });
 

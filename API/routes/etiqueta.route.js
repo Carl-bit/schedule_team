@@ -2,10 +2,13 @@ const express = require('express');
 const router = express.Router();
 const EtiquetaController = require('../controllers/etiqueta.controller');
 
-// Obtener todas las etiquetas de un empleado
+// Etiquetas compartidas (todas las que el lider definio)
+router.get('/compartidas', EtiquetaController.getEtiquetasCompartidas);
+
+// Obtener todas las etiquetas de un empleado (incluye compartidas)
 router.get('/:empleado_id', EtiquetaController.getEtiquetas);
 
-// Crear una nueva etiqueta
+// Crear una nueva etiqueta (propia o compartida segun flag compartida en body)
 router.post('/', EtiquetaController.createEtiqueta);
 
 // Actualizar una etiqueta

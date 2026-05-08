@@ -9,14 +9,23 @@ import { getEstadoStyle, ESTADO_COBERTURA_STYLES } from '@/app/lib/constants';
 import { formatDate, formatDateDMY, formatTime } from '@/app/lib/dates';
 
 type TabType = 'revision' | 'coberturas' | 'crear' | 'historial';
-type SubFilter = 'todos' | 'planificacion' | 'horas' | 'ausencias';
+type SubFilter = 'todos' | 'planificacion' | 'horas';
 
-import type { SolicitudCobertura } from '@/app/types';
+import type { SolicitudCobertura, EtiquetaHorario } from '@/app/types';
 interface PendingItem {
-    id: string; tipo: 'planificacion' | 'hora' | 'ausencia';
+    id: string; tipo: 'planificacion' | 'hora';
     empleado_id: string; nombre_empleado: string;
     detalle: string; fecha: string; estado_id: number;
     extra?: string;
+}
+interface AusenciaPendiente {
+    ausencia_id: string;
+    empleado_id: string;
+    nombre_empleado: string;
+    motivo: string;
+    inicio_ausencia: string;
+    fin_ausencia: string;
+    estado_id: number;
 }
 // Empleado type from shared types (uses full Empleado, only needs empleado_id + nombre_empleado fields)
 import type { Empleado } from '@/app/types';
@@ -167,6 +176,8 @@ export default function SolicitudesLiderPanel() {
     const [solicitudes, setSolicitudes] = useState<SolicitudCobertura[]>([]);
     const [empleados, setEmpleados] = useState<Empleado[]>([]);
     const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
+    const [ausenciasPendientes, setAusenciasPendientes] = useState<AusenciaPendiente[]>([]);
+    const [etiquetasCompartidas, setEtiquetasCompartidas] = useState<EtiquetaHorario[]>([]);
     const [loading, setLoading] = useState(true);
     const [reasignarSolicitud, setReasignarSolicitud] = useState<SolicitudCobertura | null>(null);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -187,17 +198,19 @@ export default function SolicitudesLiderPanel() {
         setLoading(true);
         try {
             const liderId = getLiderId();
-            const [solRes, empRes, planRes, horaRes, ausRes] = await Promise.all([
+            const [solRes, empRes, planRes, horaRes, ausRes, etqRes] = await Promise.all([
                 fetch(`${API_BASE}/solicitudes/lider/${liderId}`),
                 fetch(`${API_BASE}/empleados`),
                 fetch(`${API_BASE}/planificacion`),
                 fetch(`${API_BASE}/hora`),
                 fetch(`${API_BASE}/ausencias`),
+                fetch(`${API_BASE}/etiquetas/compartidas`),
             ]);
 
-            const [solData, empData, planData, horaData, ausData] = await Promise.all([
-                solRes.json(), empRes.json(), planRes.json(), horaRes.json(), ausRes.json()
+            const [solData, empData, planData, horaData, ausData, etqData] = await Promise.all([
+                solRes.json(), empRes.json(), planRes.json(), horaRes.json(), ausRes.json(), etqRes.json()
             ]);
+            if (Array.isArray(etqData)) setEtiquetasCompartidas(etqData);
 
             if (Array.isArray(solData)) setSolicitudes(solData);
             if (Array.isArray(empData)) setEmpleados(empData);
@@ -232,21 +245,24 @@ export default function SolicitudesLiderPanel() {
                 });
             }
 
-            // Ausencias pendientes (solo las que requieren aprobación)
+            // Ausencias pendientes (solo las que requieren aprobacion) - van al tab de Coberturas
+            const ausenciasItems: AusenciaPendiente[] = [];
             if (Array.isArray(ausData)) {
                 ausData.filter((a: any) => (a.estado_id === 1 || a.estado_id === 4) && a.requiere_aprobacion).forEach((a: any) => {
-                    items.push({
-                        id: a.ausencia_id, tipo: 'ausencia',
+                    ausenciasItems.push({
+                        ausencia_id: a.ausencia_id,
                         empleado_id: a.empleado_id,
                         nombre_empleado: a.nombre_empleado || empData.find((e: any) => e.empleado_id === a.empleado_id)?.nombre_empleado || a.empleado_id,
-                        detalle: a.motivo || 'Ausencia',
-                        fecha: a.inicio_ausencia, estado_id: a.estado_id,
-                        extra: `${formatDate(a.inicio_ausencia)} - ${formatDate(a.fin_ausencia)}`
+                        motivo: a.motivo || 'Ausencia',
+                        inicio_ausencia: a.inicio_ausencia,
+                        fin_ausencia: a.fin_ausencia,
+                        estado_id: a.estado_id,
                     });
                 });
             }
 
             setPendingItems(items);
+            setAusenciasPendientes(ausenciasItems);
         } catch (err) { console.error('Error fetching data:', err); }
         setLoading(false);
     };
@@ -257,11 +273,162 @@ export default function SolicitudesLiderPanel() {
 
     const getItemUrl = (item: PendingItem) => {
         if (item.tipo === 'planificacion') return `${API_BASE}/planificacion/${item.id}/estado`;
-        if (item.tipo === 'hora') return `${API_BASE}/hora/${item.id}/estado`;
-        return `${API_BASE}/ausencias/${item.id}/estado`;
+        return `${API_BASE}/hora/${item.id}/estado`;
     };
 
-    const tipoNombre = (tipo: string) => tipo === 'planificacion' ? 'Planificacion' : tipo === 'hora' ? 'Hora' : 'Ausencia';
+    const tipoNombre = (tipo: string) => tipo === 'planificacion' ? 'Planificacion' : 'Hora';
+
+    // Coberturas asociadas a una ausencia: prioriza FK ausencia_id; fallback heuristico para datos previos a la migracion
+    const coberturasParaAusencia = (aus: AusenciaPendiente): SolicitudCobertura[] => {
+        const linked = solicitudes.filter(s => s.ausencia_id === aus.ausencia_id);
+        if (linked.length > 0) return linked;
+        const ai = new Date(aus.inicio_ausencia).getTime();
+        const af = new Date(aus.fin_ausencia).getTime();
+        return solicitudes.filter(s => {
+            if (s.ausencia_id) return false;
+            if (s.empleado_id === aus.empleado_id) return false;
+            if (s.motivo !== aus.motivo) return false;
+            const si = new Date(s.fecha_inicio).getTime();
+            const sf = new Date(s.fecha_fin).getTime();
+            return si <= af && sf >= ai;
+        });
+    };
+
+    // Cobertura activa (la mas reciente que no este rechazada)
+    const coberturaActiva = (aus: AusenciaPendiente): SolicitudCobertura | undefined => {
+        const cobs = coberturasParaAusencia(aus);
+        return cobs.find(c => c.estado === 'aceptada') || cobs.find(c => c.estado === 'pendiente');
+    };
+
+    // IDs de empleados que ya rechazaron la cobertura para esta ausencia
+    const empleadosRechazaron = (aus: AusenciaPendiente): string[] => {
+        return coberturasParaAusencia(aus).filter(c => c.estado === 'rechazada').map(c => c.empleado_id);
+    };
+
+    // Helper: lista de fechas YYYY-MM-DD entre inicio y fin (inclusivo)
+    const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const diasRango = (ini: string, fin: string): string[] => {
+        const out: string[] = [];
+        const start = new Date(ini); start.setHours(0, 0, 0, 0);
+        const end = new Date(fin); end.setHours(0, 0, 0, 0);
+        const cur = new Date(start);
+        while (cur <= end) { out.push(dayKey(cur)); cur.setDate(cur.getDate() + 1); }
+        return out;
+    };
+    const fmtDiaLabel = (ds: string) => {
+        const d = new Date(ds + 'T12:00:00');
+        return d.toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: 'short' });
+    };
+
+    // Selecciones por ausencia
+    const [seleccionCubridor, setSeleccionCubridor] = useState<Record<string, string>>({});
+    // ausencia_id -> { dateStr -> etiqueta_ids[] }
+    const [seleccionEtiquetasPorDia, setSeleccionEtiquetasPorDia] = useState<Record<string, Record<string, string[]>>>({});
+    const [notaCobertura, setNotaCobertura] = useState<Record<string, string>>({});
+
+    const toggleEtiquetaDia = (ausId: string, ds: string, etqId: string) => {
+        setSeleccionEtiquetasPorDia(prev => {
+            const ausMap = { ...(prev[ausId] || {}) };
+            const list = ausMap[ds] || [];
+            ausMap[ds] = list.includes(etqId) ? list.filter(x => x !== etqId) : [...list, etqId];
+            return { ...prev, [ausId]: ausMap };
+        });
+    };
+    const aplicarDiaATodos = (ausId: string, ds: string, dias: string[]) => {
+        setSeleccionEtiquetasPorDia(prev => {
+            const ausMap = { ...(prev[ausId] || {}) };
+            const sel = ausMap[ds] || [];
+            dias.forEach(d => { ausMap[d] = [...sel]; });
+            return { ...prev, [ausId]: ausMap };
+        });
+    };
+    const limpiarDia = (ausId: string, ds: string) => {
+        setSeleccionEtiquetasPorDia(prev => {
+            const ausMap = { ...(prev[ausId] || {}) };
+            ausMap[ds] = [];
+            return { ...prev, [ausId]: ausMap };
+        });
+    };
+
+    const asignarCobertura = async (aus: AusenciaPendiente) => {
+        const empSel = seleccionCubridor[aus.ausencia_id];
+        const mapDia = seleccionEtiquetasPorDia[aus.ausencia_id] || {};
+        const nota = (notaCobertura[aus.ausencia_id] || '').trim();
+        if (!empSel) { showNotification('Selecciona un trabajador para cubrir', 'error'); return; }
+        if (coberturaActiva(aus)) { showNotification('Ya hay una cobertura activa para esta ausencia', 'error'); return; }
+        // Compactamos: solo dias con etiquetas
+        const compact: Record<string, string[]> = {};
+        Object.entries(mapDia).forEach(([d, ids]) => { if (ids.length > 0) compact[d] = ids; });
+        setUpdatingId(aus.ausencia_id);
+        try {
+            const res = await fetch(`${API_BASE}/solicitudes`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    empleado_id: empSel,
+                    creado_por: getLiderId(),
+                    motivo: aus.motivo,
+                    descripcion: nota || `Cobertura por ${aus.nombre_empleado}`,
+                    fecha_inicio: aus.inicio_ausencia,
+                    fecha_fin: aus.fin_ausencia,
+                    ausencia_id: aus.ausencia_id,
+                    etiquetas_cobertura: Object.keys(compact).length > 0 ? compact : null,
+                })
+            });
+            if (res.ok) {
+                setSeleccionCubridor(prev => ({ ...prev, [aus.ausencia_id]: '' }));
+                setSeleccionEtiquetasPorDia(prev => ({ ...prev, [aus.ausencia_id]: {} }));
+                setNotaCobertura(prev => ({ ...prev, [aus.ausencia_id]: '' }));
+                showNotification('Cobertura solicitada, esperando confirmacion', 'success');
+                fetchAll();
+            } else {
+                const d = await res.json().catch(() => ({}));
+                showNotification(d.error || 'Error al solicitar cobertura', 'error');
+            }
+        } catch (err) { console.error('Error asignando cobertura:', err); showNotification('Error de conexion', 'error'); }
+        setUpdatingId(null);
+    };
+
+    // Aprobar la ausencia: solo si hay cobertura aceptada.
+    // Los turnos del cubridor ya fueron materializados por el backend al aceptar la cobertura,
+    // asi que aqui solo cambiamos el estado de la ausencia.
+    const aprobarAusencia = async (aus: AusenciaPendiente) => {
+        const cob = coberturaActiva(aus);
+        if (!cob || cob.estado !== 'aceptada') {
+            showNotification('Necesitas una cobertura confirmada antes de aprobar', 'error');
+            return;
+        }
+        setUpdatingId(aus.ausencia_id);
+        try {
+            const res = await fetch(`${API_BASE}/ausencias/${aus.ausencia_id}/estado`, {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ estado_id: 2, motivo_revision: null })
+            });
+            if (res.ok) {
+                setAusenciasPendientes(prev => prev.filter(a => a.ausencia_id !== aus.ausencia_id));
+                showNotification(`Ausencia aprobada. Turnos ya asignados a ${cob.nombre_asignado}`, 'success');
+            } else {
+                showNotification('Error al aprobar la ausencia', 'error');
+            }
+        } catch (err) { console.error('Error aprobando ausencia:', err); showNotification('Error de conexion al aprobar', 'error'); }
+        setUpdatingId(null);
+    };
+
+    const rechazarAusencia = async (aus: AusenciaPendiente) => {
+        setUpdatingId(aus.ausencia_id);
+        try {
+            const res = await fetch(`${API_BASE}/ausencias/${aus.ausencia_id}/estado`, {
+                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ estado_id: 5, motivo_revision: 'Rechazada por el lider' })
+            });
+            if (res.ok) {
+                setAusenciasPendientes(prev => prev.filter(a => a.ausencia_id !== aus.ausencia_id));
+                showNotification(`${aus.motivo} de ${aus.nombre_empleado} rechazada`, 'error');
+            } else {
+                showNotification('Error al rechazar la ausencia', 'error');
+            }
+        } catch (err) { console.error('Error rechazando ausencia:', err); showNotification('Error de conexion al rechazar', 'error'); }
+        setUpdatingId(null);
+    };
 
     // Aprobar directamente
     const aprobarItem = async (item: PendingItem) => {
@@ -299,7 +466,7 @@ export default function SolicitudesLiderPanel() {
     // Filtered items
     const filteredItems = useMemo(() => {
         if (subFilter === 'todos') return pendingItems;
-        const map: Record<string, string> = { planificacion: 'planificacion', horas: 'hora', ausencias: 'ausencia' };
+        const map: Record<string, string> = { planificacion: 'planificacion', horas: 'hora' };
         return pendingItems.filter(i => i.tipo === map[subFilter]);
     }, [pendingItems, subFilter]);
 
@@ -320,8 +487,8 @@ export default function SolicitudesLiderPanel() {
     // Counts
     const countPlan = pendingItems.filter(i => i.tipo === 'planificacion').length;
     const countHora = pendingItems.filter(i => i.tipo === 'hora').length;
-    const countAus = pendingItems.filter(i => i.tipo === 'ausencia').length;
-    const countCob = pendientesCob.length + rechazadasCob.length;
+    const countAus = ausenciasPendientes.length;
+    const countCob = pendientesCob.length + rechazadasCob.length + countAus;
 
     const tipoIcon = (tipo: string) => {
         if (tipo === 'planificacion') return <Briefcase className="w-4 h-4 text-cyan-400" />;
@@ -387,7 +554,6 @@ export default function SolicitudesLiderPanel() {
                                     { key: 'todos' as SubFilter, label: 'Todos', count: pendingItems.length },
                                     { key: 'planificacion' as SubFilter, label: 'Turnos', count: countPlan, colr: 'text-cyan-400' },
                                     { key: 'horas' as SubFilter, label: 'Horas', count: countHora, colr: 'text-amber-400' },
-                                    { key: 'ausencias' as SubFilter, label: 'Ausencias', count: countAus, colr: 'text-rose-400' },
                                 ].map(sf => (
                                     <button key={sf.key} onClick={() => setSubFilter(sf.key)}
                                         className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer
@@ -462,6 +628,227 @@ export default function SolicitudesLiderPanel() {
                     {/* ========== TAB: COBERTURAS ========== */}
                     {activeTab === 'coberturas' && (
                         <div className="flex flex-col gap-4">
+                            {ausenciasPendientes.length > 0 && (
+                                <div className="flex flex-col gap-3">
+                                    <h3 className="text-sm font-bold text-rose-400 uppercase tracking-wider flex items-center gap-2"><CalendarOff className="w-4 h-4" /> Ausencias por aprobar — Requieren cobertura</h3>
+                                    {ausenciasPendientes.map(aus => {
+                                        const cobs = coberturasParaAusencia(aus);
+                                        const activa = coberturaActiva(aus);
+                                        const rechazadosIds = empleadosRechazaron(aus);
+                                        const elegibles = empleados.filter(e =>
+                                            e.empleado_id !== aus.empleado_id &&
+                                            !rechazadosIds.includes(e.empleado_id) &&
+                                            (!activa || activa.empleado_id !== e.empleado_id)
+                                        );
+                                        const puedeAprobar = activa?.estado === 'aceptada';
+                                        const updating = updatingId === aus.ausencia_id;
+                                        const dias = diasRango(aus.inicio_ausencia, aus.fin_ausencia);
+                                        const seleccionDia = seleccionEtiquetasPorDia[aus.ausencia_id] || {};
+                                        const totalChips = Object.values(seleccionDia).reduce((acc, l) => acc + l.length, 0);
+                                        return (
+                                            <div key={aus.ausencia_id} className="p-6 bg-[#1e2336]/80 backdrop-blur-md rounded-2xl border border-rose-500/30">
+                                                {/* Header de la ausencia */}
+                                                <div className="flex items-start justify-between gap-4">
+                                                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                                                        <div className="w-12 h-12 rounded-full bg-rose-600 flex items-center justify-center text-white font-bold text-lg shrink-0">{aus.nombre_empleado.charAt(0)}</div>
+                                                        <div className="min-w-0">
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <p className="text-lg font-bold text-white">{aus.motivo}</p>
+                                                                <span className="text-xs font-bold px-2 py-0.5 rounded-full border bg-rose-500/10 text-rose-400 border-rose-500/20">{aus.nombre_empleado}</span>
+                                                                {aus.estado_id === 4 && <span className="text-xs font-bold px-2 py-0.5 rounded-full border bg-sky-500/10 text-sky-400 border-sky-500/20">CORREGIDO</span>}
+                                                            </div>
+                                                            <p className="text-sm text-gray-400 mt-1">{formatDate(aus.inicio_ausencia)} al {formatDate(aus.fin_ausencia)} · {calcDias(aus.inicio_ausencia, aus.fin_ausencia)} dias</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 shrink-0">
+                                                        <button
+                                                            onClick={() => aprobarAusencia(aus)}
+                                                            disabled={updating || !puedeAprobar}
+                                                            title={puedeAprobar ? 'Aprobar y asignar turnos al cubridor' : 'Requiere cobertura confirmada'}
+                                                            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+                                                            {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}Aprobar
+                                                        </button>
+                                                        <button onClick={() => rechazarAusencia(aus)} disabled={updating}
+                                                            className="flex items-center gap-1 bg-red-600/80 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-sm font-bold transition-colors cursor-pointer disabled:opacity-50">
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                <div className="mt-5 pt-5 border-t border-white/5">
+                                                    <p className="text-xs text-gray-500 uppercase tracking-wider font-bold mb-3">Cobertura</p>
+
+                                                    {/* Cobertura activa (pendiente o aceptada) */}
+                                                    {activa && (
+                                                        <div className="flex flex-col gap-2 mb-3 p-4 bg-black/20 rounded-xl border border-white/5">
+                                                            <div className="flex items-center gap-3 text-sm">
+                                                                <span className="w-7 h-7 rounded-full bg-violet-600 flex items-center justify-center text-white font-bold text-xs">{activa.nombre_asignado.charAt(0)}</span>
+                                                                <span className="text-gray-200 font-bold">{activa.nombre_asignado}</span>
+                                                                <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${ESTADO_COBERTURA_STYLES[activa.estado]?.color || 'bg-gray-500/20 text-gray-400'}`}>
+                                                                    {activa.estado === 'pendiente' ? 'Pendiente de confirmacion' : activa.estado === 'aceptada' ? 'Confirmado' : activa.estado}
+                                                                </span>
+                                                            </div>
+                                                            {(() => {
+                                                                const ec = activa.etiquetas_cobertura;
+                                                                if (!ec) return null;
+                                                                if (Array.isArray(ec) && ec.length > 0) {
+                                                                    return (
+                                                                        <div className="flex flex-wrap gap-1.5 ml-10">
+                                                                            <span className="text-xs text-gray-500 mr-1 self-center">Todos los dias:</span>
+                                                                            {ec.map(eid => {
+                                                                                const etq = etiquetasCompartidas.find(e => e.etiqueta_id === eid);
+                                                                                if (!etq) return null;
+                                                                                return (
+                                                                                    <span key={eid} className="flex items-center gap-1 text-xs bg-black/30 border border-white/10 rounded-md px-2 py-1">
+                                                                                        <span className={`w-2.5 h-2.5 rounded-full ${etq.color}`}></span>
+                                                                                        <span className="text-gray-200 font-bold">{etq.nombre}</span>
+                                                                                        <span className="text-gray-500">{etq.rango_horas}</span>
+                                                                                    </span>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    );
+                                                                }
+                                                                if (typeof ec === 'object') {
+                                                                    const map = ec as Record<string, string[]>;
+                                                                    return (
+                                                                        <div className="flex flex-col gap-1.5 ml-10">
+                                                                            {dias.map(ds => {
+                                                                                const ids = map[ds] || [];
+                                                                                return (
+                                                                                    <div key={ds} className="flex items-center gap-2 text-xs flex-wrap">
+                                                                                        <span className="capitalize text-gray-300 font-bold w-44">{fmtDiaLabel(ds)}</span>
+                                                                                        {ids.length === 0 ? (
+                                                                                            <span className="text-gray-600 italic">sin cobertura</span>
+                                                                                        ) : ids.map(eid => {
+                                                                                            const etq = etiquetasCompartidas.find(e => e.etiqueta_id === eid);
+                                                                                            if (!etq) return null;
+                                                                                            return (
+                                                                                                <span key={eid} className="flex items-center gap-1 bg-black/30 border border-white/10 rounded-md px-2 py-0.5">
+                                                                                                    <span className={`w-2 h-2 rounded-full ${etq.color}`}></span>
+                                                                                                    <span className="text-gray-200">{etq.nombre}</span>
+                                                                                                    <span className="text-gray-500">{etq.rango_horas}</span>
+                                                                                                </span>
+                                                                                            );
+                                                                                        })}
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    );
+                                                                }
+                                                                return null;
+                                                            })()}
+                                                            {activa.descripcion && (
+                                                                <p className="text-xs text-gray-400 ml-10 italic">&quot;{activa.descripcion}&quot;</p>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Historial de rechazos */}
+                                                    {cobs.filter(c => c.estado === 'rechazada').length > 0 && (
+                                                        <div className="flex flex-col gap-1 mb-3 p-3 bg-black/10 rounded-lg border border-white/5">
+                                                            {cobs.filter(c => c.estado === 'rechazada').map(c => (
+                                                                <div key={c.solicitud_id} className="flex items-center gap-2 text-xs text-gray-500 flex-wrap">
+                                                                    <X className="w-3.5 h-3.5 text-red-400/70" />
+                                                                    <span className="line-through">{c.nombre_asignado}</span>
+                                                                    <span className="text-red-400/70 font-bold">Rechazado</span>
+                                                                    {c.motivo_rechazo && <span className="italic">— &quot;{c.motivo_rechazo}&quot;</span>}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Selector para asignar */}
+                                                    {!activa && (
+                                                        <div className="flex flex-col gap-4 mt-2">
+                                                            <div className="flex items-center gap-3">
+                                                                <select
+                                                                    value={seleccionCubridor[aus.ausencia_id] || ''}
+                                                                    onChange={e => setSeleccionCubridor(prev => ({ ...prev, [aus.ausencia_id]: e.target.value }))}
+                                                                    className="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+                                                                >
+                                                                    <option value="">{elegibles.length === 0 ? 'Sin trabajadores disponibles' : 'Seleccionar cubridor...'}</option>
+                                                                    {elegibles.map(e => (<option key={e.empleado_id} value={e.empleado_id}>{e.nombre_empleado}</option>))}
+                                                                </select>
+                                                                <button
+                                                                    onClick={() => asignarCobertura(aus)}
+                                                                    disabled={updating || !seleccionCubridor[aus.ausencia_id]}
+                                                                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed">
+                                                                    <UserPlus className="w-4 h-4" /> Asignar cobertura
+                                                                </button>
+                                                            </div>
+
+                                                            <div>
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                    <p className="text-xs text-gray-400 uppercase tracking-wider font-bold">Horarios a cubrir por dia</p>
+                                                                    <span className="text-[11px] text-gray-500">{totalChips} turno{totalChips !== 1 ? 's' : ''} seleccionado{totalChips !== 1 ? 's' : ''}</span>
+                                                                </div>
+                                                                {etiquetasCompartidas.length === 0 ? (
+                                                                    <p className="text-xs text-amber-400/80 p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">No hay horarios compartidos. Crea etiquetas en Catalogos &gt; Horarios para usarlas aqui.</p>
+                                                                ) : (
+                                                                    <div className="flex flex-col gap-2">
+                                                                        {dias.map(ds => {
+                                                                            const idsDia = seleccionDia[ds] || [];
+                                                                            return (
+                                                                                <div key={ds} className="flex items-start gap-3 p-3 bg-black/20 rounded-lg border border-white/5">
+                                                                                    <div className="w-44 shrink-0">
+                                                                                        <p className="text-sm font-bold text-white capitalize">{fmtDiaLabel(ds)}</p>
+                                                                                        <button
+                                                                                            onClick={() => aplicarDiaATodos(aus.ausencia_id, ds, dias)}
+                                                                                            disabled={idsDia.length === 0}
+                                                                                            className="text-[10px] text-indigo-400 hover:text-indigo-300 mt-1 disabled:opacity-30 cursor-pointer">
+                                                                                            Aplicar a todos los dias
+                                                                                        </button>
+                                                                                        {idsDia.length > 0 && (
+                                                                                            <button
+                                                                                                onClick={() => limpiarDia(aus.ausencia_id, ds)}
+                                                                                                className="text-[10px] text-gray-500 hover:text-red-400 ml-2 cursor-pointer">
+                                                                                                Limpiar
+                                                                                            </button>
+                                                                                        )}
+                                                                                    </div>
+                                                                                    <div className="flex flex-wrap gap-2 flex-1">
+                                                                                        {etiquetasCompartidas.map(etq => {
+                                                                                            const sel = idsDia.includes(etq.etiqueta_id);
+                                                                                            return (
+                                                                                                <button
+                                                                                                    key={etq.etiqueta_id}
+                                                                                                    onClick={() => toggleEtiquetaDia(aus.ausencia_id, ds, etq.etiqueta_id)}
+                                                                                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer ${sel ? 'bg-indigo-600 text-white border-indigo-400 shadow-md shadow-indigo-600/20' : 'bg-black/30 text-gray-300 border-white/10 hover:border-indigo-500/40 hover:bg-black/40'}`}
+                                                                                                    title={`${etq.nombre} ${etq.rango_horas}`}
+                                                                                                >
+                                                                                                    <span className={`w-2.5 h-2.5 rounded-full ${etq.color}`}></span>
+                                                                                                    {etq.nombre} <span className="opacity-70 font-normal">{etq.rango_horas}</span>
+                                                                                                </button>
+                                                                                            );
+                                                                                        })}
+                                                                                    </div>
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="text-xs text-gray-400 uppercase tracking-wider font-bold mb-1.5 block">Nota para el cubridor</label>
+                                                                <textarea
+                                                                    value={notaCobertura[aus.ausencia_id] || ''}
+                                                                    onChange={e => setNotaCobertura(prev => ({ ...prev, [aus.ausencia_id]: e.target.value }))}
+                                                                    placeholder={`Por defecto: "Cobertura por ${aus.nombre_empleado}"`}
+                                                                    rows={2}
+                                                                    className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 resize-none"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                             {rechazadasCob.length > 0 && (
                                 <div className="flex flex-col gap-2">
                                     <h3 className="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-1.5"><X className="w-3.5 h-3.5" /> Rechazadas — Requieren reasignación</h3>
@@ -495,7 +882,7 @@ export default function SolicitudesLiderPanel() {
                                     ))}
                                 </div>
                             )}
-                            {pendientesCob.length === 0 && rechazadasCob.length === 0 && (
+                            {pendientesCob.length === 0 && rechazadasCob.length === 0 && ausenciasPendientes.length === 0 && (
                                 <div className="bg-[#1e2336]/80 backdrop-blur-md rounded-2xl border border-[#3b4256]/50 p-8 text-center">
                                     <Check className="w-10 h-10 text-emerald-400 mx-auto mb-3" /><p className="text-gray-400 text-sm">No hay coberturas pendientes</p>
                                 </div>

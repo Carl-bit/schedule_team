@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS catalogo_etiquetas (
     color VARCHAR(50) NOT NULL,
     tipo VARCHAR(50) NOT NULL,
     secuencia_patron JSON,
+    compartida BOOLEAN NOT NULL DEFAULT false,
     FOREIGN KEY (empleado_id) REFERENCES empleados(empleado_id)
 );
 
@@ -88,9 +89,13 @@ CREATE TABLE IF NOT EXISTS planificacion_horaria (
     estado_id INTEGER DEFAULT 1,
     creado_por VARCHAR(50),
     motivo_revision TEXT,
+    etiqueta_id VARCHAR(50),
+    solicitud_cobertura_id VARCHAR(50),
     FOREIGN KEY (empleado_id) REFERENCES empleados(empleado_id),
     FOREIGN KEY (estado_id) REFERENCES catalogo_estado(estado_id),
-    FOREIGN KEY (creado_por) REFERENCES empleados(empleado_id)
+    FOREIGN KEY (creado_por) REFERENCES empleados(empleado_id),
+    FOREIGN KEY (etiqueta_id) REFERENCES catalogo_etiquetas(etiqueta_id) ON DELETE SET NULL
+    -- FK a solicitudes_cobertura se agrega despues por orden de creacion
 );
 
 CREATE TABLE IF NOT EXISTS registro_horas (
@@ -128,9 +133,25 @@ CREATE TABLE IF NOT EXISTS solicitudes_cobertura (
     estado VARCHAR(50) DEFAULT 'pendiente',
     motivo_rechazo TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
+    ausencia_id VARCHAR(50),
+    etiquetas_cobertura JSON,
     FOREIGN KEY (empleado_id) REFERENCES empleados(empleado_id),
-    FOREIGN KEY (creado_por) REFERENCES empleados(empleado_id)
+    FOREIGN KEY (creado_por) REFERENCES empleados(empleado_id),
+    FOREIGN KEY (ausencia_id) REFERENCES ausencias(ausencia_id) ON DELETE SET NULL
 );
+
+-- FK postergada: planificacion_horaria.solicitud_cobertura_id -> solicitudes_cobertura
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'planificacion_horaria_solicitud_cobertura_id_fkey'
+    ) THEN
+        ALTER TABLE planificacion_horaria
+            ADD CONSTRAINT planificacion_horaria_solicitud_cobertura_id_fkey
+            FOREIGN KEY (solicitud_cobertura_id) REFERENCES solicitudes_cobertura(solicitud_id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
 -- ============================================================
 -- 5. FUNCIONES Y TRIGGERS

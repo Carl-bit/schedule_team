@@ -4,9 +4,12 @@ import ProyectosPanel from "./ProyectosPanel";
 import CatalogosPanel from "./CatalogosPanel";
 import SolicitudesLiderPanel from "./SolicitudesLiderPanel";
 import InformePanel from "./InformePanel";
+import LiderCalendarPanel from "./LiderCalendarPanel";
+
+export type LiderVista = 'resume' | 'trabajadores' | 'proyectos' | 'catalogos' | 'solicitudes' | 'informe' | 'calendario';
 
 interface LiderContentControllerProps {
-    vista: 'resume' | 'trabajadores' | 'proyectos' | 'catalogos' | 'solicitudes' | 'informe';
+    vista: LiderVista;
 }
 
 export default function LiderContentController({ vista }: LiderContentControllerProps) {
@@ -23,6 +26,8 @@ export default function LiderContentController({ vista }: LiderContentController
             return <SolicitudesLiderPanel />;
         case 'informe':
             return <InformePanel />;
+        case 'calendario':
+            return <LiderCalendarPanel />;
         default:
             return <LiderResumePanel />;
     }

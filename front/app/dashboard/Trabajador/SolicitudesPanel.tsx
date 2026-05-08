@@ -4,7 +4,7 @@ import { Users, Clock, CheckCircle2, AlertCircle, XCircle, Briefcase, CalendarCl
 
 import { API_BASE } from '@/app/lib/api';
 import { useUser } from '@/app/hooks/useUser';
-import type { Asignacion, Ausencia, SolicitudCobertura } from '@/app/types';
+import type { Asignacion, Ausencia, SolicitudCobertura, EtiquetaHorario } from '@/app/types';
 
 interface ProyectoSolicitud {
     proyecto_id: string;
@@ -39,6 +39,7 @@ export default function SolicitudesPanel() {
     const [solicitudesHoras, setSolicitudesHoras] = useState<SolicitudHora[]>([]);
     const [ausencias, setAusencias] = useState<Ausencia[]>([]);
     const [coberturas, setCoberturas] = useState<SolicitudCobertura[]>([]);
+    const [horariosCompartidos, setHorariosCompartidos] = useState<EtiquetaHorario[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const [filtroHoras, setFiltroHoras] = useState<FiltroHoras>('todos');
@@ -70,13 +71,18 @@ export default function SolicitudesPanel() {
 
                 const timestamp = Date.now();
 
-                const [asignacionesRes, planRes, horasRes, ausenciasRes, coberturasRes] = await Promise.all([
+                const [asignacionesRes, planRes, horasRes, ausenciasRes, coberturasRes, etqRes] = await Promise.all([
                     fetch(`${API_BASE}/asignaciones`),
                     fetch(`${API_BASE}/planificacion/${userId}?t=${timestamp}`),
                     fetch(`${API_BASE}/hora/${userId}?t=${timestamp}`),
                     fetch(`${API_BASE}/ausencias/${userId}?t=${timestamp}`),
-                    fetch(`${API_BASE}/solicitudes/empleado/${userId}?t=${timestamp}`)
+                    fetch(`${API_BASE}/solicitudes/empleado/${userId}?t=${timestamp}`),
+                    fetch(`${API_BASE}/etiquetas/compartidas?t=${timestamp}`)
                 ]);
+                if (etqRes.ok) {
+                    const data = await etqRes.json();
+                    if (Array.isArray(data)) setHorariosCompartidos(data);
+                }
 
                 // --- Procesar Asignaciones (Equipos) ---
                 if (asignacionesRes.ok) {
@@ -445,7 +451,13 @@ export default function SolicitudesPanel() {
                                         const isPending = cob.estado === 'pendiente';
                                         const isAccepted = cob.estado === 'aceptada';
                                         const isRejected = cob.estado === 'rechazada';
-                                        const dias = Math.max(1, Math.ceil((new Date(cob.fecha_fin).getTime() - new Date(cob.fecha_inicio).getTime()) / 86400000) + 1);
+                                        // Calculo en UTC para que la cuenta de dias no se desplace por TZ del browser
+                                        const ini = new Date(cob.fecha_inicio);
+                                        const finD = new Date(cob.fecha_fin);
+                                        const iniUTC = Date.UTC(ini.getUTCFullYear(), ini.getUTCMonth(), ini.getUTCDate());
+                                        const finUTC = Date.UTC(finD.getUTCFullYear(), finD.getUTCMonth(), finD.getUTCDate());
+                                        const dias = Math.max(1, Math.round((finUTC - iniUTC) / 86400000) + 1);
+                                        const fmtDayUTC = (s: string) => new Date(s).toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short', timeZone: 'UTC' });
 
                                         return (
                                             <div key={cob.solicitud_id}
@@ -464,10 +476,55 @@ export default function SolicitudesPanel() {
                                                         </div>
                                                         <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-400">
                                                             <span>Solicitado por <strong className="text-indigo-300">{cob.nombre_lider}</strong></span>
-                                                            <span>{formatearFechaCorta(cob.fecha_inicio)} - {formatearFechaCorta(cob.fecha_fin)}</span>
+                                                            <span>{fmtDayUTC(cob.fecha_inicio)} - {fmtDayUTC(cob.fecha_fin)}</span>
                                                             <span className="text-indigo-300 font-medium">{dias} dia{dias > 1 ? 's' : ''}</span>
                                                         </div>
                                                         {cob.descripcion && <p className="text-[10px] text-gray-500 mt-0.5">{cob.descripcion}</p>}
+                                                        {(() => {
+                                                            const ec = cob.etiquetas_cobertura;
+                                                            if (!ec) return null;
+                                                            const renderChip = (eid: string) => {
+                                                                const etq = horariosCompartidos.find(h => h.etiqueta_id === eid);
+                                                                if (!etq) return null;
+                                                                return (
+                                                                    <span key={eid} className="flex items-center gap-1 text-[10px] bg-black/30 border border-white/10 rounded-md px-1.5 py-0.5">
+                                                                        <span className={`w-2 h-2 rounded-full ${etq.color}`}></span>
+                                                                        <span className="text-gray-300 font-bold">{etq.nombre}</span>
+                                                                        <span className="text-gray-500">{etq.rango_horas}</span>
+                                                                    </span>
+                                                                );
+                                                            };
+                                                            if (Array.isArray(ec) && ec.length > 0) {
+                                                                return (
+                                                                    <div className="flex flex-wrap gap-1 mt-1.5">
+                                                                        <span className="text-[9px] text-gray-500 uppercase tracking-wider font-bold mr-1 self-center">Horarios (todos los dias):</span>
+                                                                        {ec.map(renderChip)}
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            if (typeof ec === 'object' && !Array.isArray(ec)) {
+                                                                const map = ec as Record<string, string[]>;
+                                                                const dayKeys = Object.keys(map).sort();
+                                                                if (dayKeys.length === 0) return null;
+                                                                return (
+                                                                    <div className="flex flex-col gap-1 mt-1.5">
+                                                                        <span className="text-[9px] text-gray-500 uppercase tracking-wider font-bold">Horarios por dia</span>
+                                                                        {dayKeys.map(ds => {
+                                                                            const ids = map[ds] || [];
+                                                                            const d = new Date(ds + 'T12:00:00');
+                                                                            const lbl = d.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' });
+                                                                            return (
+                                                                                <div key={ds} className="flex items-center gap-2 flex-wrap text-[10px]">
+                                                                                    <span className="text-gray-300 font-bold w-32 capitalize">{lbl}</span>
+                                                                                    {ids.length === 0 ? <span className="text-gray-600 italic">sin cobertura</span> : ids.map(renderChip)}
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            return null;
+                                                        })()}
                                                         {isRejected && cob.motivo_rechazo && (
                                                             <p className="text-[10px] text-red-400/70 mt-1 flex items-center gap-1">
                                                                 <MessageSquare className="w-2.5 h-2.5" /> Tu motivo: &quot;{cob.motivo_rechazo}&quot;

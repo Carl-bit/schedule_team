@@ -14,7 +14,11 @@ const getAusenciasByEmpleado = asyncHandler(async (req, res) => {
 
 const createAusencia = asyncHandler(async (req, res) => {
     const { empleado_id, tipo_ausencia_id, inicio, fin } = req.body;
-    const nuevaAusencia = await ausenciaService.createAusencia(empleado_id, tipo_ausencia_id, inicio, fin);
+    const nuevaAusencia = await ausenciaService.createAusencia(
+        empleado_id, tipo_ausencia_id, 
+        inicio ? new Date(inicio) : null, 
+        fin ? new Date(fin) : null
+    );
     res.status(201).json(nuevaAusencia);
 });
 

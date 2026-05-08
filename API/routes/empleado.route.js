@@ -4,6 +4,7 @@ const empleadoController = require('../controllers/empleado.controller');
 const { validate } = require('../middleware/validate');
 
 router.get('/', empleadoController.getEmpleados);
+router.post('/admin/reset-password', empleadoController.adminResetPassword);
 router.get('/:id', empleadoController.getEmpleadoById);
 router.post('/', validate(['nombre', 'correo', 'password', 'alias', 'telefono', 'puesto_id']), empleadoController.createEmpleado);
 router.put('/:id', empleadoController.updateEmpleado);

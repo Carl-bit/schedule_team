@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import ContentProfile from '../Trabajador/ContentProfile';
+import type { LiderVista } from './LiderContentController';
 
 import { API_BASE } from '@/app/lib/api';
 
@@ -12,7 +13,7 @@ interface MenuItemProps {
     badges?: { count: number; bg: string; color: string; label: string }[];
 }
 
-export default function LiderProfilePanel({ setVista, vistaActual }: { setVista: (vista: 'resume' | 'trabajadores' | 'proyectos' | 'catalogos' | 'solicitudes' | 'informe') => void; vistaActual: string }) {
+export default function LiderProfilePanel({ setVista, vistaActual }: { setVista: (vista: LiderVista) => void; vistaActual: string }) {
     const [, setBadgeTrabajadores] = useState(0);
     const [badgeSolicitudes, setBadgeSolicitudes] = useState(0);
 
@@ -53,6 +54,7 @@ export default function LiderProfilePanel({ setVista, vistaActual }: { setVista:
 
             <nav className="py-2 flex-1 overflow-y-auto custom-scrollbar">
                 <MenuItem icon="🏠" label="Ver Resumen" active={vistaActual === 'resume'} onClick={() => setVista('resume')} />
+                <MenuItem icon="📅" label="Calendario" active={vistaActual === 'calendario'} onClick={() => setVista('calendario')} />
                 <MenuItem icon="👥" label="Trabajadores" active={vistaActual === 'trabajadores'} onClick={() => setVista('trabajadores')} />
                 <MenuItem icon="📁" label="Proyectos" active={vistaActual === 'proyectos'} onClick={() => setVista('proyectos')} />
                 <MenuItem icon="⚙️" label="Catálogos" active={vistaActual === 'catalogos'} onClick={() => setVista('catalogos')} />
